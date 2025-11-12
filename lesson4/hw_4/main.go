@@ -12,6 +12,11 @@ func main() {
 		fmt.Print("Введите возраст: ")
 		fmt.Scan(&age)
 
+		if age < 0 {
+			fmt.Println("Ошибка: возраст не может быть отрицательным")
+			continue
+		}
+
 		// Определение статуса в зависимости от возраста
 		switch {
 		case age < 18:
