@@ -19,15 +19,16 @@ var ItemSlice []Item
 
 // Объявление структуры товара
 type Item struct {
-	itemID    uint32
-	itemName  string
-	itemQty   uint32
-	itemPrice float64
+	id        uint32
+	name      string
+	qty       uint32
+	price     float64
+	category  string
 	dateAdded time.Time
 }
 
 // Глобальная переменная для подсчета товаров
-var totalItems int
+var totalItems uint32
 
 func main() {
 	fmt.Println("Введите команду:\nadd - добавить товар\nd - расчет скидки\np -вывод количества товаров\nq, quit - выход")
@@ -53,39 +54,63 @@ func main() {
 func addNewItem() uint32 {
 
 	var (
-		itemID    uint32
-		itemName  string
-		itemQty   uint32
-		itemPrice float64
+		id        uint32
+		name      string
+		qty       uint32
+		price     float64
+		category  string
 		dateAdded time.Time = time.Now()
+		input     string
+		newItem   Item
 	)
 
 	fmt.Println("\nВведите данные о товаре:")
 	fmt.Println("ID: ")
-	fmt.Scan(&itemID)
+	if _, err := fmt.Scanln(&id); err != nil {
+		newItem.id = id
+	} else {
+		fmt.Println("Ошибка ввода. Не правильный тип значения.", err)
+	}
 	fmt.Println("Название: ")
-	fmt.Scan(&itemName)
-	//fmt.Println("Категория: "); fmt.Scan(&category)
+	if _, err := fmt.Scan(&name); err != nil {
+		newItem.name = name
+	} else {
+		fmt.Println("Ошибка ввода. Не правильный тип значения.", err)
+	}
+	fmt.Println("Введите код категории (1 - Электроника, 2 - Продукты, 3 - Одежда):")
+	fmt.Scan(&input)
+	if input == "1" {
+		category = "Электроника"
+	} else if input == "2" {
+		category = "Продукты"
+	} else if input == "3" {
+		category = "Одежда"
+	}
+	newItem.category = category
 	fmt.Println("Количество: ")
-	fmt.Scan(&itemQty)
+	if _, err := fmt.Scan(&qty); err != nil {
+		newItem.qty = qty
+	} else {
+		fmt.Println("Ошибка ввода. Не правильный тип значения.", err)
+	}
 	fmt.Println("Цена: ")
-	fmt.Scan(&itemPrice)
-
-	var newItem Item
-	newItem.itemID = itemID
-	newItem.itemName = itemName
-	newItem.itemQty = itemQty
-	newItem.itemPrice = itemPrice
+	if _, err := fmt.Scan(&price); err != nil {
+		newItem.price = price
+	} else {
+		fmt.Println("Ошибка ввода. Не правильный тип значения.", err)
+	}
 	newItem.dateAdded = dateAdded
 
 	ItemSlice = append(ItemSlice, newItem)
 
-	return newItem.itemID
+	totalItems += 1
+
+	return newItem.id
 }
 
 // Вывод количества внесенных товаров
 func printQtyItems() {
-	fmt.Println("Внесено товаров: ", len(ItemSlice))
+	fmt.Printf("Внесено товаров: %d\n", totalItems)
 }
 
 // Расчет скидки
