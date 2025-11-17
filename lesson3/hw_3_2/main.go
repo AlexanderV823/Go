@@ -36,22 +36,29 @@ func main() {
 		var input string
 		fmt.Scanln(&input)
 		if input == "add" {
-			fmt.Printf("Товар добавлен. ID: %d\n", addNewItem())
-			fmt.Println("Введите команду:")
+			val, err := addNewItem()
+			if err != nil {
+				fmt.Println("\nОшибка ввода значения:", err)
+				fmt.Println("\nВведите команду:")
+			} else {
+				fmt.Printf("\nТовар добавлен. ID: %d\n", val)
+				fmt.Print("\nВведите команду: ")
+			}
 		} else if input == "p" {
 			printQtyItems()
-			fmt.Println("Введите команду:")
+			fmt.Print("\nВведите команду: ")
 		} else if input == "d" {
 			calculateDiscount()
-			fmt.Println("Введите команду:")
+			fmt.Print("\nВведите команду: ")
 		} else if input == "quit" || input == "q" {
+			fmt.Println("\nЗакрытие программы...")
 			break
 		}
 	}
 }
 
 // Функция для добавления нового товара и возвращение его ID
-func addNewItem() uint32 {
+func addNewItem() (uint32, error) {
 
 	var (
 		id        uint32
@@ -65,19 +72,20 @@ func addNewItem() uint32 {
 	)
 
 	fmt.Println("\nВведите данные о товаре:")
-	fmt.Println("ID: ")
+	fmt.Print("ID: ")
 	if _, err := fmt.Scanln(&id); err != nil {
-		newItem.id = id
-	} else {
-		fmt.Println("Ошибка ввода. Не правильный тип значения.", err)
+		return 0, fmt.Errorf("ожидается число в диапазоне 0 — 4 294 967 295")
 	}
-	fmt.Println("Название: ")
+	newItem.id = id
+
+	fmt.Print("Название: ")
 	if _, err := fmt.Scan(&name); err != nil {
-		newItem.name = name
-	} else {
 		fmt.Println("Ошибка ввода. Не правильный тип значения.", err)
+		return 0, fmt.Errorf("ожидается ввод строкового значения")
 	}
-	fmt.Println("Введите код категории (1 - Электроника, 2 - Продукты, 3 - Одежда):")
+	newItem.name = name
+
+	fmt.Print("Введите код категории (1 - Электроника, 2 - Продукты, 3 - Одежда): ")
 	fmt.Scan(&input)
 	if input == "1" {
 		category = "Электроника"
@@ -85,19 +93,22 @@ func addNewItem() uint32 {
 		category = "Продукты"
 	} else if input == "3" {
 		category = "Одежда"
+	} else {
+		return 0, fmt.Errorf("указана не существующая категория")
 	}
 	newItem.category = category
-	fmt.Println("Количество: ")
+	fmt.Print("Количество: ")
 	if _, err := fmt.Scan(&qty); err != nil {
+		fmt.Println("Ошибка ввода. Не правильный тип значения.", err)
+		return 0, fmt.Errorf("ожидается число в диапазоне 0 — 4 294 967 295")
+	} else {
 		newItem.qty = qty
-	} else {
-		fmt.Println("Ошибка ввода. Не правильный тип значения.", err)
 	}
-	fmt.Println("Цена: ")
+	fmt.Print("Цена: ")
 	if _, err := fmt.Scan(&price); err != nil {
-		newItem.price = price
+		return 0, fmt.Errorf("ожидается число с плавающей точкой")
 	} else {
-		fmt.Println("Ошибка ввода. Не правильный тип значения.", err)
+		newItem.price = price
 	}
 	newItem.dateAdded = dateAdded
 
@@ -105,7 +116,7 @@ func addNewItem() uint32 {
 
 	totalItems += 1
 
-	return newItem.id
+	return newItem.id, nil
 }
 
 // Вывод количества внесенных товаров
