@@ -2,7 +2,7 @@ package main
 
 import (
 	"fmt"
-	"github.com/AlexanderV823/Go/tree/main/lesson6/hw_6/addEmployee"
+	"github.com/AlexanderV823/Go/tree/hw6/lesson6/hw_6/addEmployee"
 )
 
 type Displayable interface {

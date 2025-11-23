@@ -3,7 +3,7 @@ package addEmployee
 import (
 	"errors"
 	"fmt"
-	"github.com/AlexanderV823/Go/tree/main/lesson6/hw_6/findEmployee"
+	"github.com/AlexanderV823/Go/tree/hw6/lesson6/hw_6/findEmployee"
 )
 
 // Добавляет структуру сотрудника в срез. Если сотрудник с таким ID уже есть в срезе, данные о нем перезаписываются.
