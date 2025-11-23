@@ -18,12 +18,12 @@ type Job struct {
 
 // Структура сотрудника
 type Employee struct {
-	ID      int    `json:"id"`      //Табельный номер
-	Surname string `json:"surname"` //Фамилия
-	Name    string `json:"name"`    //Имя
-	Age     int    `json:"age"`     //Возраст
-	Job     Job    `json:"job"`     //Должность
-	Salary  int    `json:"salary"`  //Зарплата
+	ID      int    //Табельный номер
+	Surname string //Фамилия
+	Name    string //Имя
+	Age     int    //Возраст
+	Job     Job    //Должность
+	Salary  int    //Зарплата
 }
 
 func (emp Employee) Display() { //В параметре ждать данные для вывода
