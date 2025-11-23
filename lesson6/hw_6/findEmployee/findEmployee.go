@@ -8,6 +8,6 @@ import (
 // array - массив для поиска,
 // id - id-сотрудника.
 // Возврашает error, или структуру с данными сотрудника.
-func Find(array []byte, id int) (Employee, error) {
+func findEmployee(array []byte, id int) (Employee, error) {
 	return fmt.Errorf("функция в разработке")
 }
