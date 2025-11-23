@@ -29,13 +29,13 @@ func ReadProcessWrite(inputPath string, outputPath string, process func(string) 
 
 	fileIn, error := os.Open(inputPath)
 
-	defer fileIn.Close()
-
 	if error != nil {
 
 		return fmt.Errorf("Ошибка открытия файла: %w", ErrFileNotFound)
 
 	}
+	
+	defer fileIn.Close()
 
 	scanner := bufio.NewScanner(fileIn)
 
