@@ -9,20 +9,13 @@ type Displayable interface {
 	Display()
 }
 
-// Структура должности
-type Job struct {
-	ID         int    //Код
-	Name       string //Название
-	Department string //Подразделение
-}
-
 // Структура сотрудника
 type Employee struct {
 	ID      int    //Табельный номер
 	Surname string //Фамилия
 	Name    string //Имя
 	Age     int    //Возраст
-	Job     Job    //Должность
+	Job     string //Должность
 	Salary  int    //Зарплата
 }
 
@@ -41,22 +34,36 @@ func main() {
 		var input string
 		fmt.Scanln(&input)
 		if input == "add" {
-			// val, err := addNewItem()
-			// if err != nil {
-			// 	fmt.Println("\nОшибка ввода значения:", err)
-			// 	fmt.Println("\nВведите команду:")
-			// } else {
-			// 	fmt.Printf("\nТовар добавлен. ID: %d\n", val)
-			// 	fmt.Print("\nВведите команду: ")
-			// }
-		} else if input == "p" {
-			if Displayable != nil {
-				Displayable.Display() //Передавать необходимые данные для вывода
+			var (
+				id      int
+				surname string
+				name    string
+				age     int
+				job     string
+				salary  int
+			)
+			fmt.Println("Введите таб.номер, фамилию, имя, возраст, должность и зарплату: ")
+			_, err := fmt.Scanf("%d %s %s %d %s %d", &id, &surname, &name, &age, &job, &salary)
+			if err != nil {
+				fmt.Println("\nОшибка ввода значения:", err)
 			}
-			fmt.Print("\nВведите команду: ")
-		} else if input == "d" {
-			calculateDiscount()
-			fmt.Print("\nВведите команду: ")
+			newEmp := Employee{ID: id, Surname: surname, Name: name, Age: age, Job: job, Salary: salary}
+
+			err := addEmployee(newEmp, *Employees)
+			if err != nil {
+				fmt.Println("\nОшибка добавления сотрудника:", err)
+			} else {
+				//Сообщаем об успешной записи
+				fmt.Println("Данные о сотруднике записаны")
+			}
+			// } else if input == "p" {
+			// 	if Displayable != nil {
+			// 		Displayable.Display() //Передавать необходимые данные для вывода
+			// 	}
+			// 	fmt.Print("\nВведите команду: ")
+			// } else if input == "d" {
+			// 	calculateDiscount()
+			// 	fmt.Print("\nВведите команду: ")
 		} else if input == "quit" || input == "q" {
 			fmt.Println("\nЗакрытие программы...")
 			break

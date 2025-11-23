@@ -7,20 +7,20 @@ import (
 // Производит поиск сотрудника по ID в переданном срезе или массиве.
 // array - срез для поиска,
 // id - id-сотрудника.
-// Возврашает nil, error, или структуру с данными сотрудника.
-func findEmployee(array []byte, id int) (Employee, error) {
-
-	var foundEmployee *Employee // Используйте указатель для возможности вернуть nil
+// Возврашает индекс записи о сотруднике или error.
+func findEmployee(array []byte, id int) (index int, err error) {
 
 	for i := range array {
 		if array[i].ID == id {
-			foundEmployee = &array[i]
+			index = i
 			break
 		}
 	}
 
-	if foundEmployee != nil {
-		return foundEmployee
+	if index != nil {
+		return index
 	}
-	return nil, fmt.Errorf("сотрудник не найден")
+
+	return fmt.Errorf("сотрудник не найден")
+
 }
