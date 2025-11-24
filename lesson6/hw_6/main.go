@@ -2,7 +2,7 @@ package main
 
 import (
 	"fmt"
-	"github.com/AlexanderV823/Go/tree/main/lesson6/hw_6/addEmployee"
+	"github.com/AlexanderV823/Go/tree/main/lesson6/hw_6/addEmp"
 )
 
 type Displayable interface {
@@ -19,9 +19,9 @@ type Employee struct {
 	Salary  int    //Зарплата
 }
 
-func (emp Employee) Display() { //В параметре ждать данные для вывода
+func (emp Employee) Display(s string) { //В параметре ждать данные для вывода
 
-	fmt.Println() //Выводить присланнные данные
+	fmt.Printf("\nФункция в разработке: %s", s) //Выводить присланнные данные
 
 }
 
@@ -49,7 +49,7 @@ func main() {
 			}
 			newEmp := Employee{ID: id, Surname: surname, Name: name, Age: age, Job: job, Salary: salary}
 
-			err := addEmployee(newEmp, *Employees)
+			err := addEmp.AddEmployee(newEmp, Employees)
 			if err != nil {
 				fmt.Println("\nОшибка добавления сотрудника:", err)
 			} else {
