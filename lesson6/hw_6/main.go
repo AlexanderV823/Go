@@ -49,7 +49,7 @@ func main() {
 			}
 			newEmp := Employee{ID: id, Surname: surname, Name: name, Age: age, Job: job, Salary: salary}
 
-			err := addEmp.AddEmployee(newEmp, Employees)
+			err = addEmp.AddEmployee(newEmp, Employees)
 			if err != nil {
 				fmt.Println("\nОшибка добавления сотрудника:", err)
 			} else {

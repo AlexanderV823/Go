@@ -19,12 +19,14 @@ var (
 	ErrNotWriteBuffer     = errors.New("не удалось записать содержимое в буфер")
 	ErrEOFFile            = errors.New("достигнут конец чтения файла")
 	ErrFilePath           = errors.New("укажите полный путь к файлу и расширение")
+	ErrStringToUpper      = errors.New("не получилось преобразовать строку к верхнему регистру")
 )
 
 // Функция читает содержиоме файла, переводит все строки в верхний регистр и записывает в новый файл
 //
 //	inputPath - путь к исходному файлу, string
 //	outputPath - путь к выходному файлу, string
+//  process - функция-обертка, преобразующая строку к верхнему регистру
 func ReadProcessWrite(inputPath string, outputPath string, process func(string) (string, error)) error {
 
 	fileIn, error := os.Open(inputPath)
@@ -34,7 +36,7 @@ func ReadProcessWrite(inputPath string, outputPath string, process func(string) 
 		return fmt.Errorf("Ошибка открытия файла: %w", ErrFileNotFound)
 
 	}
-	
+
 	defer fileIn.Close()
 
 	scanner := bufio.NewScanner(fileIn)
@@ -55,7 +57,11 @@ func ReadProcessWrite(inputPath string, outputPath string, process func(string) 
 
 		line := scanner.Text() // Получить строку
 
-		upperString := strings.ToUpper(line)
+		upperString, err := process(line)
+
+		if err != nil {
+			return fmt.Errorf("Ошибка преобразования строк: %w", ErrStringToUpper)
+		}
 
 		fmt.Println(upperString) //Вывод чисто для информации. Для наглядности отладки
 
@@ -111,13 +117,23 @@ func main() {
 
 	}
 
-	error := ReadProcessWrite(inputPath, outputPath)
-	// передать strings.ToUpper третьим аргументом предварительно обернув в функцию возвращающую ошибку
-	// не понятно как и что передавать
+proc := func(s string) (upperString string, err error) {
+	if err != nil {
+		return "", fmt.Errorf("Ошибка вызова toUpperWithError: %w", err)
+	}
 
-	if error != nil {
+	upperString = strings.ToUpper(s)
 
-		fmt.Println("Ошибка при выполнении функции ReadProcessWrite\n %w", error)
+	return upperString, nil
+}
+
+	err := ReadProcessWrite(inputPath, outputPath, proc)
+	//Что передавать аргументом toUpperWithError, если функция принимает строку, которая возникнет при чтении файла из inputPath?
+
+	if err != nil {
+
+		fmt.Println("Ошибка при выполнении функции ReadProcessWrite\n %w", err)
+		log.Println("Ошибка при выполнении функции ReadProcessWrite.")
 
 	}
 
