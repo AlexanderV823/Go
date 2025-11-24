@@ -4,7 +4,6 @@ import (
 	"bufio"
 	"errors"
 	"fmt"
-	"io"
 	"log"
 	"os"
 	"strings"
@@ -19,35 +18,37 @@ var (
 	ErrNotWriteBuffer     = errors.New("не удалось записать содержимое в буфер")
 	ErrEOFFile            = errors.New("достигнут конец чтения файла")
 	ErrFilePath           = errors.New("укажите полный путь к файлу и расширение")
+	ErrStringToUpper      = errors.New("не получилось преобразовать строку к верхнему регистру")
 )
 
 // Функция читает содержиоме файла, переводит все строки в верхний регистр и записывает в новый файл
 //
-//	inputPath - путь к исходному файлу, string
-//	outputPath - путь к выходному файлу, string
-func ReadProcessWrite(inputPath string, outputPath string, process func(string) (string, error)) error {
+// inputPath - путь к исходному файлу, string
+// outputPath - путь к выходному файлу, string
+// process - функция-обертка, преобразующая строку к верхнему регистру
+func ReadProcessWrite(inputPath string, outputPath string, process func(string) (string, error)) (err error) {
 
-	fileIn, error := os.Open(inputPath)
+	fileIn, err := os.Open(inputPath)
 
-	if error != nil {
+	if err != nil {
 
-		return fmt.Errorf("Ошибка открытия файла: %w", ErrFileNotFound)
+		return fmt.Errorf("Ошибка открытия файла: %s (%s)", ErrFileNotFound)
 
 	}
-	
+
 	defer fileIn.Close()
 
 	scanner := bufio.NewScanner(fileIn)
 
-	fileOut, error := os.OpenFile(outputPath, os.O_WRONLY|os.O_CREATE|os.O_APPEND, 0644)
+	fileOut, err := os.OpenFile(outputPath, os.O_WRONLY|os.O_CREATE|os.O_APPEND, 0644)
 
-	defer fileOut.Close()
+	if err != nil {
 
-	if error != nil {
-
-		return fmt.Errorf("Ошибка записи файла: %w", ErrNotCreateWriteFile)
+		return fmt.Errorf("Ошибка записи файла: %s (%s)", ErrNotCreateWriteFile, err)
 
 	}
+
+	defer fileOut.Close()
 
 	writer := bufio.NewWriter(fileOut) //Создаёт буфер (по умолчанию 4 КБ)
 
@@ -55,37 +56,32 @@ func ReadProcessWrite(inputPath string, outputPath string, process func(string) 
 
 		line := scanner.Text() // Получить строку
 
-		upperString := strings.ToUpper(line)
+		upperString, err := process(line)
 
-		fmt.Println(upperString) //Вывод чисто для информации. Для наглядности отладки
-
-		_, error := writer.WriteString(upperString) //Метод WriteString пишет данные в буфер, а не напрямую в файл. Первый параметр количество записанных байт
-
-		if error != nil {
-
-			return fmt.Errorf("Ошибка записи файла: %w", ErrNotWriteBuffer)
-
+		if err != nil {
+			return fmt.Errorf("ошибка преобразования строк: %s (%s)", ErrStringToUpper, err)
 		}
 
-	}
+		fmt.Print(upperString) //Вывод чисто для информации. Для наглядности отладки
 
-	if error := scanner.Err(); error != nil {
+		_, err = writer.WriteString(upperString) //Метод WriteString пишет данные в буфер, а не напрямую в файл. Первый параметр количество записанных байт
 
-		if error == io.EOF {
-
-			writer.Flush() // Сбросить буфер в файл!
-
-			return fmt.Errorf("Чтение файла: %w", ErrEOFFile)
-
-		} else {
-
-			return fmt.Errorf("Ошибка чтения файла: %w", ErrNotReadFile)
-
+		if err != nil {
+			if err.Error() != "EOF" {
+				return fmt.Errorf("ошибка записи в буфер: %s (%s)", ErrNotWriteBuffer, err)
+			}
 		}
 	}
+
+	err = writer.Flush() // Сбросить буфер в файл!
+
+	if err != nil {
+		return fmt.Errorf("ошибка записи в буфер: %s (%s)", ErrNotWriteBuffer, err)
+	}
+
+	fmt.Printf("Запись в файл из буфера...")
 
 	return nil //Требования о возврате чего-то в случае успеха нет. Возвращать нужно только ошибки
-
 }
 
 func main() {
@@ -97,27 +93,38 @@ func main() {
 
 	fmt.Print("Введите имя файла для чтения: ")
 
-	if _, error := fmt.Scan(&inputPath); error != nil {
+	if _, err := fmt.Scan(&inputPath); err != nil {
 
-		fmt.Errorf("Ошибка ввода. Не правильный тип значения: %w", ErrFilePath)
+		fmt.Errorf("ошибка ввода. Не правильный тип значения: %s (%s)", ErrFilePath, err)
 
 	}
 
 	fmt.Print("Введите имя файла для записи: ")
 
-	if _, error := fmt.Scan(&outputPath); error != nil {
+	if _, err := fmt.Scan(&outputPath); err != nil {
 
-		fmt.Errorf("Ошибка ввода. Не правильный тип значения: %w", ErrFilePath)
+		fmt.Errorf("ошибка ввода. Не правильный тип значения: %s (%s)", ErrFilePath, err)
 
 	}
 
-	error := ReadProcessWrite(inputPath, outputPath)
-	// передать strings.ToUpper третьим аргументом предварительно обернув в функцию возвращающую ошибку
-	// не понятно как и что передавать
+	proc := func(s string) (upperString string, err error) {
 
-	if error != nil {
+		if err != nil {
+			return "", fmt.Errorf("Ошибка вызова toUpperWithError: %s", err)
+		}
 
-		fmt.Println("Ошибка при выполнении функции ReadProcessWrite\n %w", error)
+		upperString = strings.ToUpper(s)
+		n := "\n"
+
+		return upperString + n, nil
+	}
+
+	err := ReadProcessWrite(inputPath, outputPath, proc)
+
+	if err != nil {
+
+		fmt.Println("Ошибка при выполнении функции ReadProcessWrite: %s", err)
+		log.Println("Ошибка при выполнении функции ReadProcessWrite.")
 
 	}
 
