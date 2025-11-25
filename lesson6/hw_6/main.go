@@ -29,6 +29,7 @@ func (emp Employee) Display(s string) { //В параметре ждать да�
 var Employees = make([]Employee, 3)
 
 func main() {
+	
 	fmt.Println("Введите команду:\nadd - добавить сотрудника\ndisp - вывод информации о сотруднике\nf - фильтрация по возрасту и зарплате\nq, quit - выход") //подсказки вывести в отдельную функцию
 	for {
 		var input string
@@ -49,7 +50,7 @@ func main() {
 			}
 			newEmp := Employee{ID: id, Surname: surname, Name: name, Age: age, Job: job, Salary: salary}
 
-			err = addEmp.AddEmployee(newEmp, Employees)
+			err = addEmp.AddEmployee(newEmp, *Employees)
 			if err != nil {
 				fmt.Println("\nОшибка добавления сотрудника:", err)
 			} else {

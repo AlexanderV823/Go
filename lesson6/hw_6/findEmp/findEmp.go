@@ -8,7 +8,7 @@ import (
 // array - срез для поиска,
 // id - id-сотрудника.
 // Возврашает индекс записи о сотруднике или -1 и error.
-func FindEmployee(slice []byte, id int) (int, error) {
+func FindEmployee(slice []Employee, id int) (int, error) {
 
 	for i := range slice {
 		emp := slice[i]

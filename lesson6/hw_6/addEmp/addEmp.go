@@ -8,7 +8,7 @@ import (
 // Добавляет структуру сотрудника в срез. Если сотрудник с таким ID уже есть в срезе, данные о нем перезаписываются.
 // emp - структура с данными сотрудника.
 // slc - срез для поиска и записи.
-func AddEmployee(emp Employee, slc []Employees) (err error) {
+func AddEmployee(emp Employee, slc []Employee) (err error) {
 
 	if err != nil {
 		return fmt.Errorf("Ошибка вызова addEmployee: %w", err)
