@@ -95,7 +95,7 @@ func main() {
 
 	if _, err := fmt.Scan(&inputPath); err != nil {
 
-		fmt.Errorf("ошибка ввода. Не правильный тип значения: %s (%s)", ErrFilePath, err)
+		log.Printf("ошибка ввода. Не правильный тип значения: %s (%s)", ErrFilePath, err)
 
 	}
 
@@ -103,15 +103,11 @@ func main() {
 
 	if _, err := fmt.Scan(&outputPath); err != nil {
 
-		fmt.Errorf("ошибка ввода. Не правильный тип значения: %s (%s)", ErrFilePath, err)
+		log.Printf("ошибка ввода. Не правильный тип значения: %s (%s)", ErrFilePath, err)
 
 	}
 
 	proc := func(s string) (upperString string, err error) {
-
-		if err != nil {
-			return "", fmt.Errorf("Ошибка вызова toUpperWithError: %s", err)
-		}
 
 		upperString = strings.ToUpper(s)
 		n := "\n"
@@ -123,8 +119,7 @@ func main() {
 
 	if err != nil {
 
-		fmt.Println("Ошибка при выполнении функции ReadProcessWrite: %s", err)
-		log.Println("Ошибка при выполнении функции ReadProcessWrite.")
+		log.Println("Ошибка при выполнении функции ReadProcessWrite: %s", err)
 
 	}
 
