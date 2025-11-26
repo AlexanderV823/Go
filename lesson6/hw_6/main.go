@@ -9,7 +9,7 @@ type Displayable interface {
 	Display()
 }
 
-// Структура сотрудника
+// Employee - структура сотрудника
 type Employee struct {
 	ID      int    //Табельный номер
 	Surname string //Фамилия
@@ -25,7 +25,7 @@ func (emp Employee) Display(s string) { //В параметре ждать да�
 
 }
 
-// Срез сотрудников
+// Employees - срез сотрудников
 var Employees = make([]Employee, 3)
 
 func main() {
