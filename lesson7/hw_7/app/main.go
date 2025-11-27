@@ -7,6 +7,30 @@ import (
 
 func main() {
 
+	var i string
+
+	for {
+		fmt.Println("Выполнить расчет? (д/н): ")
+		_, err := fmt.Scan(&i)
+
+		if err != nil {
+			fmt.Println("Ошибка: %w", err)
+			return
+		}
+
+		if i == "д" {
+			calc()
+		} else if i == "н" {
+			fmt.Println("Выход из программы...")
+			break
+		} else {
+			fmt.Println("Неизвестная команда. Повторите ввод")
+		}
+	}
+}
+
+func calc() {
+
 	var (
 		a int
 		b int
