@@ -21,7 +21,7 @@ func (emp Employee) Display() { //В параметре ждать данные 
 }
 
 // Employees - срез сотрудников
-var Employees = make([]Employee, 3)
+var Employees []Employee
 
 // Add добавляет структуру сотрудника в срез. Если сотрудник с таким ID уже есть в срезе, данные о нем перезаписываются.
 // emp - структура с данными сотрудника.
@@ -61,32 +61,18 @@ func Find(slice []Employee, id int) (int, error) {
 
 }
 
-// FilterAge выводит список сотрудников старше или равных, указанному возрасту
+// FilterAgeSalary выводит список сотрудников старше или равных, указанному возрасту,
+// с зарплатой выше или равной, указанной
 // minAge - возраст для фильтрации
-func FilterAge(minAge int) (err error) {
-	var filteredEmp []Employee
-	for _, emp := range Employees {
-		if emp.Age >= minAge {
-			filteredEmp = append(filteredEmp, emp)
-		}
-	}
-	for _, emp := range filteredEmp {
-		emp.Display()
-	}
-	return nil
-}
-
-// FilterSalary выводит список сотрудников с зарплатой выше или равной, указанной
 // minSalary - зарплата для фильтрации
-func FilterSalary(minSalary float64) (err error) {
+func FilterAgeSalary(minAge int, minSalary float64) (emp []Employee, err error) {
+
 	var filteredEmp []Employee
+
 	for _, emp := range Employees {
-		if emp.Salary >= minSalary {
+		if emp.Age >= minAge && emp.Salary >= minSalary {
 			filteredEmp = append(filteredEmp, emp)
 		}
 	}
-	for _, emp := range filteredEmp {
-		emp.Display()
-	}
-	return nil
+	return filteredEmp, nil
 }
