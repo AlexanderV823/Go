@@ -63,7 +63,7 @@ func main() {
 				continue
 			}
 			if id == -1 {
-				fmt.Println("Сотрудник с таким табельным номером не найден")
+				fmt.Println("Сотрудники с такими табельным номером не найден")
 				continue
 			}
 			emp := employee.Employees[id]
@@ -90,6 +90,12 @@ func main() {
 				fmt.Printf("Ошибка фильтрации по возрасту и зарплате: %s\n", err)
 				continue
 			}
+
+			if len(emp) == 0 {
+				fmt.Println("Сотрудники с такими параметрами не найдены")
+				continue
+			}
+
 			for _, e := range emp {
 				e.Display()
 			}
