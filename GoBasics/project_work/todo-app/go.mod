@@ -1,3 +1,3 @@
-module todo-app/cmd/todo
+module todo-app
 
 go 1.25.4
