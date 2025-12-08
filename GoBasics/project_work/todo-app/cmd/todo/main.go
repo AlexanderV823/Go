@@ -4,24 +4,54 @@ import (
 	"flag"
 	"fmt"
 	"os"
+	"os/exec"
 	"path/filepath"
+	"runtime"
+	"strings"
 	"todo-app/internal/storage"
 	"todo-app/internal/todo"
 )
 
+func clearConsole() {
+	var cmd *exec.Cmd
+
+	// Определяем операционную систему
+	if runtime.GOOS == "windows" {
+		// Для Windows используется команда 'cls'
+		cmd = exec.Command("cmd", "/c", "cls")
+	} else {
+		// Для Linux и macOS используется команда 'clear'
+		cmd = exec.Command("clear")
+	}
+	// Устанавливаем стандартный вывод (терминал) как вывод команды
+	cmd.Stdout = os.Stdout
+	// Выполняем команду
+	cmd.Run()
+}
+
 func main() {
 	fmt.Println("Мини-приложение для управления задачами на Go")
 
-	//Подгрузите текущие задачи
-	//Файл хранения задаем сами
-	//Загружаем список ранее сохраненных задач из основного файла хранения
-	dataFile := "tasks.json"
-	tasks, err := storage.LoadJSON(dataFile)
+	// Загружаем список ранее сохраненных задач из основного файла хранения
+	path, err := storage.MakePath("tasks.json")
+	if err != nil {
+		fmt.Printf("Ошибка: %s", err)
+		os.Exit(1)
+	}
+	tasks, err := storage.LoadJSON(path)
+
+	if err != nil {
+		fmt.Printf("Ошибка: %s", err)
+		os.Exit(1)
+	}
 
 	for {
-
-		//Считываем команду из os.Args[1] и аргументы в args := os.Args[2:]
 		fmt.Print("Введите команду: ")
+
+		// Очищаем консоль перед вводом
+		clearConsole()
+
+		// Считываем команду из os.Args[1] и аргументы в args := os.Args[2:]
 		cmd := os.Args[1]
 		args := os.Args[2:]
 
@@ -36,7 +66,10 @@ func main() {
 				os.Exit(1)
 			}
 
-			tasks, err = todo.Add(tasks, *descAdd)
+			desc := strings.TrimPrefix(*descAdd, "--desc=\"")
+			desc = strings.TrimSuffix(desc, "\"")
+
+			tasks, err = todo.Add(tasks, desc)
 
 			if err != nil {
 				fmt.Println("Ошибка: %s", err)
@@ -54,7 +87,9 @@ func main() {
 				os.Exit(1)
 			}
 
-			filteredTasks, err := todo.List(tasks, *filterList)
+			filter := strings.TrimPrefix(*filterList, "--filter=")
+
+			filteredTasks, err := todo.List(tasks, filter)
 
 			if err != nil {
 				fmt.Println("Ошибка: %s", err)
@@ -103,18 +138,70 @@ func main() {
 			loadCmd := flag.NewFlagSet("load", flag.ExitOnError)
 			filterLoad := loadCmd.String("file", "tasks.json", "file name")
 
-			// ext := filepath.Ext()
-			// err := storage.LoadJSON(cmd)
-			// if err != nil {
-			// 	fmt.Printf("Ошибка загрузки списка задач: %s\n", err)
-			// 	continue
-			// }
-			// fmt.Println("Список задач загружен")
+			path := strings.TrimPrefix(*filterLoad, "--file=\"")
+
+			ext := filepath.Ext(path)
+
+			switch ext {
+			case "json":
+				tasks, err = storage.LoadJSON(path)
+				if err != nil {
+					fmt.Println("Ошибка загрузки списка задач: %s", err)
+					continue
+				}
+				fmt.Println("Список задач загружен")
+			case "csv":
+				tasks, err = storage.LoadCSV(path)
+				if err != nil {
+					fmt.Println("Ошибка загрузки списка задач: %s", err)
+					continue
+				}
+				fmt.Println("Список задач загружен")
+			default:
+				fmt.Println("Неизвестный формат файла.")
+			}
 
 		case "export":
+
 			exportCmd := flag.NewFlagSet("export", flag.ExitOnError)
 			formatExport := exportCmd.String("format", "json", "file format")
-			outExport := exportCmd.String("out", "tasks.json", "output format")
+			outExport := exportCmd.String("out", "", "output file")
+
+			format := strings.TrimPrefix(*formatExport, "--format=")
+			out := strings.TrimPrefix(*outExport, "--out=")
+
+			switch format {
+			case "json":
+
+				path, err := storage.MakePath(out + "." + format)
+				if err != nil {
+					fmt.Printf("ООшибка сохранения списка задач: %s", err)
+					continue
+				}
+				err = storage.SaveJSON(path, tasks)
+				if err != nil {
+					fmt.Printf("Ошибка сохранения списка задач: %s", err)
+					continue
+				}
+				fmt.Println("Список задач сохранен")
+
+			case "csv":
+
+				path, err := storage.MakePath(out + "." + format)
+				if err != nil {
+					fmt.Printf("Ошибка сохранения списка задач: %s", err)
+					continue
+				}
+				err = storage.SaveCSV(path, tasks)
+				if err != nil {
+					fmt.Printf("Ошибка сохранения списка задач: %s", err)
+					continue
+				}
+				fmt.Println("Список задач сохранен")
+
+			default:
+				fmt.Println("Неизвестный формат файла.")
+			}
 
 		default:
 			fmt.Println("Неизвестная команда.")

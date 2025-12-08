@@ -4,40 +4,22 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
-	"path/filepath"
 	"todo-app/internal/todo"
 )
 
-// LoadJSON загружает данные о задачах из файла JSON
+// LoadJSON загружает данные о задачах из файла JSON.
 // path - путь к файлу
 func LoadJSON(path string) ([]todo.Task, error) {
 
 	//tasksJSON - срез структур с задачами
 	var tasksJSON []todo.Task
 
-	// Находим домашний каталог
-	homeDir, err := os.UserHomeDir()
-	if err != nil {
-		return tasksJSON, fmt.Errorf("ошибка создания файла json: %w", err)
-	}
-
-	// Объединяем путь к домашнему каталогу и имя папки
-	folderPath := filepath.Join(homeDir, "MyTasks")
-
-	// Создаем папку, если она не существует.
-	err = os.MkdirAll(folderPath, 0644)
-	if err != nil {
-		return tasksJSON, fmt.Errorf("ошибка создания файла json: %w", err)
-	}
-
-	// Создание файла
-	filePath := filepath.Join(folderPath, path)
-	fileInfo, err := os.Stat(filePath)
+	fileInfo, err := os.Stat(path)
 	if err != nil {
 		if os.IsNotExist(err) {
 
 			// Если ошибка равна ошибке отсутствия файла, то значит создаем новый
-			err := SaveJSON(filePath, tasksJSON)
+			err := SaveJSON(path, tasksJSON)
 
 			if err != nil {
 				return tasksJSON, fmt.Errorf("ошибка создания файла json: %w", err)
@@ -49,7 +31,7 @@ func LoadJSON(path string) ([]todo.Task, error) {
 		if fileInfo.Size() == 0 {
 
 			// Если в файле пусто, то просто записываем свои данные
-			err := SaveJSON(filePath, tasksJSON)
+			err := SaveJSON(path, tasksJSON)
 
 			if err != nil {
 				return tasksJSON, fmt.Errorf("ошибка создания файла json: %w", err)
@@ -62,7 +44,7 @@ func LoadJSON(path string) ([]todo.Task, error) {
 			// Если что-то записано, то прочитать из файла и загрузить в срез tasksJSON и вернуть в место вызова
 			// Считайте содержимое os.ReadFile.
 			// Открываем JSON-файл
-			jsonData, err := os.ReadFile(filePath)
+			jsonData, err := os.ReadFile(path)
 
 			if err != nil {
 				return tasksJSON, fmt.Errorf("ошибка чтения файла json: %w", err)
@@ -77,7 +59,7 @@ func LoadJSON(path string) ([]todo.Task, error) {
 			}
 
 			//если все нормально, пробуем записать
-			err = SaveJSON(filePath, tasksJSON)
+			err = SaveJSON(path, tasksJSON)
 
 			if err != nil {
 				return tasksJSON, fmt.Errorf("ошибка создания файла json: %w", err)
@@ -87,8 +69,8 @@ func LoadJSON(path string) ([]todo.Task, error) {
 	return tasksJSON, nil
 }
 
-// SaveJSON сохраняет данные о задачах в файл JSON
-// path - путь к файлу
+// SaveJSON сохраняет данные о задачах в файл JSON.
+// path - путь к файлу,
 // tasks - срез структур с задачами
 func SaveJSON(path string, tasks []todo.Task) error {
 
@@ -107,7 +89,7 @@ func SaveJSON(path string, tasks []todo.Task) error {
 	}
 
 	//Сообщаем об успешной записи
-	fmt.Println("Данные успешно записаны в json файл")
+	//fmt.Println("Данные успешно записаны в json файл")
 
 	return nil
 }

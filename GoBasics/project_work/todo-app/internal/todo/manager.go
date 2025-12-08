@@ -1,19 +1,13 @@
 package todo
 
-import (
-	"fmt"
-	"strings"
-)
+import "fmt"
 
-// Add добавляет задачу в список
-// tasks - срез структур с задачами
+// Add добавляет задачу в список.
+// tasks - срез структур с задачами,
 // desc  - описание задачи
 func Add(tasks []Task, desc string) ([]Task, error) {
 
-	var (
-		id       int
-		taskDesc string
-	)
+	var id int
 
 	maxI := len(tasks)
 
@@ -36,10 +30,7 @@ func Add(tasks []Task, desc string) ([]Task, error) {
 		}
 	}
 
-	taskDesc = strings.TrimPrefix(desc, "-desc=\"")
-	taskDesc = strings.TrimSuffix(taskDesc, "\"")
-
-	newTask := Task{ID: id, Description: taskDesc, Done: false}
+	newTask := Task{ID: id, Description: desc, Done: false}
 
 	tasks = append(tasks, newTask)
 
@@ -48,16 +39,14 @@ func Add(tasks []Task, desc string) ([]Task, error) {
 	return tasks, nil
 }
 
-// List выводит список задач
-// tasks  - срез структур с задачами
+// List выводит список задач.
+// tasks  - срез структур с задачами,
 // filter - all (по умолчанию) — все задачи;
 //   - done — только выполненные;
 //   - pending — только невыполненные.
 func List(tasks []Task, filter string) ([]Task, error) {
 
 	var filteredTasks []Task
-
-	filter = strings.TrimPrefix(filter, "--filter=")
 
 	switch filter {
 	case "all":
@@ -81,8 +70,8 @@ func List(tasks []Task, filter string) ([]Task, error) {
 	}
 }
 
-// Complete устанавливает отметку выполнения
-// tasks - срез структур с задачами
+// Complete устанавливает отметку выполнения.
+// tasks - срез структур с задачами,
 // id    - ID задачи
 func Complete(tasks []Task, id int) ([]Task, error) {
 
@@ -104,8 +93,8 @@ func Complete(tasks []Task, id int) ([]Task, error) {
 	return tasks, nil
 }
 
-// Delete удаляет задачу
-// tasks - срез структур с задачами
+// Delete удаляет задачу.
+// tasks - срез структур с задачами,
 // id    - ID задачи
 func Delete(tasks []Task, id int) ([]Task, error) {
 
