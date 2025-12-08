@@ -72,7 +72,7 @@ func main() {
 			tasks, err = todo.Add(tasks, desc)
 
 			if err != nil {
-				fmt.Println("Ошибка: %s", err)
+				fmt.Printf("Ошибка: %s", err)
 				continue
 			}
 
@@ -92,7 +92,7 @@ func main() {
 			filteredTasks, err := todo.List(tasks, filter)
 
 			if err != nil {
-				fmt.Println("Ошибка: %s", err)
+				fmt.Printf("Ошибка: %s", err)
 				continue
 			}
 
@@ -113,7 +113,7 @@ func main() {
 			tasks, err = todo.Complete(tasks, *completeId)
 
 			if err != nil {
-				fmt.Println("Ошибка: %s", err)
+				fmt.Printf("Ошибка: %s", err)
 				continue
 			}
 
@@ -130,7 +130,7 @@ func main() {
 			tasks, err = todo.Complete(tasks, *deleteId)
 
 			if err != nil {
-				fmt.Println("Ошибка: %s", err)
+				fmt.Printf("Ошибка: %s", err)
 				continue
 			}
 
@@ -146,14 +146,14 @@ func main() {
 			case "json":
 				tasks, err = storage.LoadJSON(path)
 				if err != nil {
-					fmt.Println("Ошибка загрузки списка задач: %s", err)
+					fmt.Printf("Ошибка загрузки списка задач: %s", err)
 					continue
 				}
 				fmt.Println("Список задач загружен")
 			case "csv":
 				tasks, err = storage.LoadCSV(path)
 				if err != nil {
-					fmt.Println("Ошибка загрузки списка задач: %s", err)
+					fmt.Printf("Ошибка загрузки списка задач: %s", err)
 					continue
 				}
 				fmt.Println("Список задач загружен")
