@@ -20,7 +20,7 @@ func MakePath(fileName string) (filePath string, err error) {
 	folderPath := filepath.Join(homeDir, "MyTasks")
 
 	// Создаем папку, если она не существует.
-	err = os.MkdirAll(folderPath, 0644)
+	err = os.MkdirAll(folderPath, 0755)
 	if err != nil {
 		return "", fmt.Errorf("ошибка создания файла: %w", err)
 	}
