@@ -8,9 +8,9 @@ type Displayable interface {
 
 // Task структура задачи
 type Task struct {
-	ID          int
-	Description string
-	Done        bool
+	ID          int    `json:"id"`
+	Description string `json:"description"`
+	Done        bool   `json:"done"`
 }
 
 func (t Task) Display() {
