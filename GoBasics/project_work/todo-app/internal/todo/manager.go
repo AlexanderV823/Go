@@ -85,9 +85,9 @@ func Complete(tasks []Task, id int) ([]Task, error) {
 	}
 
 	if flag {
-		fmt.Printf("Задача №%d отмечена как выполненная", id)
+		fmt.Printf("Задача №%d отмечена как выполненная\n", id)
 	} else {
-		fmt.Printf("Задача №%d не найдена в списке", id)
+		fmt.Printf("Задача №%d не найдена в списке\n", id)
 	}
 
 	return tasks, nil
@@ -108,9 +108,9 @@ func Delete(tasks []Task, id int) ([]Task, error) {
 	}
 
 	if flag {
-		fmt.Printf("Задача №%d отмечена как выполненная", id)
+		fmt.Printf("Задача №%d отмечена как выполненная\n", id)
 	} else {
-		fmt.Printf("Задача №%d не найдена в списке", id)
+		fmt.Printf("Задача №%d не найдена в списке\n", id)
 	}
 
 	return tasks, nil
