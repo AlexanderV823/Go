@@ -7,34 +7,28 @@ import "fmt"
 // desc  - описание задачи
 func Add(tasks []Task, desc string) ([]Task, error) {
 
-	var id int
-
-	maxI := len(tasks)
+	var taskId int = 1
 
 	// Ищем свободный id в диапазоне от 1 до 250
 	for id := 1; id < 251; id++ {
-
 		// Проверяем наличие в срезе с задачами ранее добавленной задачи с таким же id
-		for i, v := range tasks {
+		for _, v := range tasks {
 			if v.ID == id {
-				// Если достигнут индекс последнего элемента среза, то дальше возникнет бесконечный цикл
-				if maxI == i {
-					return tasks, fmt.Errorf("не найдено свободного id. Достигнуто максимальное количество задач")
-				}
 				// Если такой id ранее было присвоено какой-то из загруженных задач, то переходим к новой генерации
 				continue
 			} else {
 				// При нахождении первого ранее не использованного id прерываем цикл
+				taskId = id
 				break
 			}
 		}
 	}
 
-	newTask := Task{ID: id, Description: desc, Done: false}
+	newTask := Task{ID: taskId, Description: desc, Done: false}
 
 	tasks = append(tasks, newTask)
 
-	fmt.Printf("Задача №%d добавлена в список\n", id)
+	fmt.Printf("Задача №%d добавлена в список\n", taskId)
 
 	return tasks, nil
 }
