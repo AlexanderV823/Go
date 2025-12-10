@@ -4,11 +4,13 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"todo-app/internal/todo"
 )
 
 // MakePath - кроссплатформенно формирует путь для сохранения файла относительно домашнего каталога пользователя.
-// fileName - имя файла
-func MakePath(fileName string) (filePath string, err error) {
+// name 	- имя файла,
+// ext 		- расширение файла.
+func MakePath(name string, ext string) (filePath string, err error) {
 
 	// Находим домашний каталог
 	homeDir, err := os.UserHomeDir()
@@ -25,6 +27,33 @@ func MakePath(fileName string) (filePath string, err error) {
 		return "", fmt.Errorf("ошибка создания файла: %w", err)
 	}
 
-	// Возвращаем созданный файл
-	return filepath.Join(folderPath, fileName), nil
+	// Соединяем папку и имя файла в путь
+	filePath = filepath.Join(folderPath, name+ext)
+
+	// Получаем информацию о файле
+	_, err = os.Stat(filePath)
+	if err != nil {
+		if os.IsNotExist(err) {
+			// Если ошибка равна ошибке отсутствия файла, то значит создаем новый и записываем пустую структуру, иначе будет ошибка при попытке десериализировать в JSON
+			var tasks []todo.Task
+			switch ext {
+			case ".json":
+				err = SaveJSON(filePath, tasks)
+				if err != nil {
+					return "", fmt.Errorf("ошибка создания json-файла: %w", err)
+				}
+			case ".csv":
+				err = SaveCSV(filePath, tasks)
+				if err != nil {
+					return "", fmt.Errorf("ошибка создания csv-файла: %w", err)
+				}
+			default:
+				return "", fmt.Errorf("указано неподдерживаемое расширение")
+			}
+		} else {
+			return "", fmt.Errorf("ошибка создания файла: %w", err) //На случай иных ошибок
+		}
+	}
+	//Сообщаем об успешном создании (нахождении) файла
+	return filePath, nil
 }
