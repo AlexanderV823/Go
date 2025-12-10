@@ -4,52 +4,44 @@ import (
 	"flag"
 	"fmt"
 	"os"
-	"os/exec"
 	"path/filepath"
-	"runtime"
 	"strings"
 	"todo-app/internal/storage"
 	"todo-app/internal/todo"
 )
 
-func clearConsole() {
-	var cmd *exec.Cmd
-
-	// Определяем операционную систему
-	if runtime.GOOS == "windows" {
-		// Для Windows используется команда 'cls'
-		cmd = exec.Command("cmd", "/c", "cls")
-	} else {
-		// Для Linux и macOS используется команда 'clear'
-		cmd = exec.Command("clear")
-	}
-	// Устанавливаем стандартный вывод (терминал) как вывод команды
-	cmd.Stdout = os.Stdout
-	// Выполняем команду
-	cmd.Run()
-}
-
 func main() {
 
+	var (
+		cmd  string
+		args []string
+	)
+
 	// Загружаем список ранее сохраненных задач из основного файла хранения
-	path, err := storage.MakePath("tasks.json")
+	path, err := storage.MakePath("tasks", ".json")
 	if err != nil {
-		fmt.Printf("Ошибка: %s", err)
+		fmt.Println(err)
 		os.Exit(1)
 	}
 	tasks, err := storage.LoadJSON(path)
 
 	if err != nil {
-		fmt.Printf("Ошибка: %s", err)
+		fmt.Println(err)
 		os.Exit(1)
 	}
 
-	// Очищаем консоль перед вводом
-	clearConsole()
-
 	// Считываем команду из os.Args[1] и аргументы в args := os.Args[2:]
-	cmd := os.Args[1]
-	args := os.Args[2:]
+	if len(os.Args) < 2 {
+		fmt.Println("Не достаточное количество аргументов.")
+		os.Exit(1)
+	}
+	cmd = os.Args[1]
+
+	if len(os.Args) < 3 {
+		fmt.Println("Не передан ни один флаг.")
+		os.Exit(1)
+	}
+	args = os.Args[2:]
 
 	switch cmd {
 	case "add":
@@ -69,6 +61,13 @@ func main() {
 
 		if err != nil {
 			fmt.Printf("Ошибка: %s\n", err)
+			os.Exit(1)
+		}
+
+		err = storage.SaveJSON(path, tasks)
+		if err != nil {
+			fmt.Printf("Ошибка: %s\n", err)
+			os.Exit(1)
 		}
 
 	case "list":
@@ -88,6 +87,7 @@ func main() {
 
 		if err != nil {
 			fmt.Printf("Ошибка: %s\n", err)
+			os.Exit(1)
 		}
 
 		for _, t := range filteredTasks {
@@ -108,6 +108,13 @@ func main() {
 
 		if err != nil {
 			fmt.Printf("Ошибка: %s\n", err)
+			os.Exit(1)
+		}
+
+		err = storage.SaveJSON(path, tasks)
+		if err != nil {
+			fmt.Printf("Ошибка: %s\n", err)
+			os.Exit(1)
 		}
 
 	case "delete":
@@ -124,31 +131,75 @@ func main() {
 
 		if err != nil {
 			fmt.Printf("Ошибка: %s\n", err)
+			os.Exit(1)
+		}
+
+		err = storage.SaveJSON(path, tasks)
+		if err != nil {
+			fmt.Printf("Ошибка: %s\n", err)
+			os.Exit(1)
 		}
 
 	case "load":
 		loadCmd := flag.NewFlagSet("load", flag.ExitOnError)
 		filterLoad := loadCmd.String("file", "tasks.json", "file name")
 
-		path := strings.TrimPrefix(*filterLoad, "--file=\"")
+		err = loadCmd.Parse(args)
+		if err != nil {
+			fmt.Println(err)
+			os.Exit(1)
+		}
 
-		ext := filepath.Ext(path)
+		name := strings.TrimPrefix(*filterLoad, "--file=\"")
+		ext := filepath.Ext(name)
+
+		name = strings.TrimSuffix(name, ext)
+
+		path, err = storage.MakePath(name, ext)
+		if err != nil {
+			fmt.Println(err)
+			os.Exit(1)
+		}
 
 		switch ext {
-		case "json":
+		case ".json":
 			tasks, err = storage.LoadJSON(path)
 			if err != nil {
 				fmt.Printf("Ошибка загрузки списка задач: %s\n", err)
+				os.Exit(1)
+			}
+			path, err = storage.MakePath("tasks", ".json")
+			if err != nil {
+				fmt.Println(err)
+				os.Exit(1)
+			}
+			err = storage.SaveJSON(path, tasks)
+			if err != nil {
+				fmt.Printf("Ошибка: %s\n", err)
+				os.Exit(1)
 			}
 			fmt.Println("Список задач загружен")
-		case "csv":
+
+		case ".csv":
 			tasks, err = storage.LoadCSV(path)
 			if err != nil {
 				fmt.Printf("Ошибка загрузки списка задач: %s\n", err)
+				os.Exit(1)
+			}
+			path, err = storage.MakePath("tasks", ".json")
+			if err != nil {
+				fmt.Println(err)
+				os.Exit(1)
+			}
+			err = storage.SaveJSON(path, tasks)
+			if err != nil {
+				fmt.Printf("Ошибка: %s\n", err)
+				os.Exit(1)
 			}
 			fmt.Println("Список задач загружен")
 		default:
 			fmt.Println("Неизвестный формат файла.")
+			os.Exit(1)
 		}
 
 	case "export":
@@ -157,40 +208,51 @@ func main() {
 		formatExport := exportCmd.String("format", "json", "file format")
 		outExport := exportCmd.String("out", "", "output file")
 
+		err = exportCmd.Parse(args)
+		if err != nil {
+			fmt.Println(err)
+			os.Exit(1)
+		}
+
 		format := strings.TrimPrefix(*formatExport, "--format=")
 		out := strings.TrimPrefix(*outExport, "--out=")
 
 		switch format {
 		case "json":
 
-			path, err := storage.MakePath(out + "." + format)
+			path, err := storage.MakePath(out, "."+format)
 			if err != nil {
-				fmt.Printf("ООшибка сохранения списка задач: %s\n", err)
+				fmt.Printf("Ошибка сохранения списка задач: %s\n", err)
+				os.Exit(1)
 
 			}
 			err = storage.SaveJSON(path, tasks)
 			if err != nil {
 				fmt.Printf("Ошибка сохранения списка задач: %s\n", err)
+				os.Exit(1)
 			}
 			fmt.Println("Список задач сохранен")
 
 		case "csv":
 
-			path, err := storage.MakePath(out + "." + format)
+			path, err = storage.MakePath(out, "."+format)
 			if err != nil {
 				fmt.Printf("Ошибка сохранения списка задач: %s\n", err)
+				os.Exit(1)
 			}
 			err = storage.SaveCSV(path, tasks)
 			if err != nil {
 				fmt.Printf("Ошибка сохранения списка задач: %s\n", err)
+				os.Exit(1)
 			}
 			fmt.Println("Список задач сохранен")
 
 		default:
 			fmt.Println("Неизвестный формат файла.")
+			os.Exit(1)
 		}
-
 	default:
-		fmt.Println("Неизвестная команда.")
+		fmt.Println("Не известная команда.")
+		os.Exit(1)
 	}
 }
