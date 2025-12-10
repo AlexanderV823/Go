@@ -7,21 +7,31 @@ import "fmt"
 // desc  - описание задачи
 func Add(tasks []Task, desc string) ([]Task, error) {
 
-	var taskId int = 1
+	var (
+		taskId int = -1
+		free   bool
+	)
 
 	// Ищем свободный id в диапазоне от 1 до 250
 	for id := 1; id < 251; id++ {
+		free = true
 		// Проверяем наличие в срезе с задачами ранее добавленной задачи с таким же id
 		for _, v := range tasks {
 			if v.ID == id {
-				// Если такой id ранее было присвоено какой-то из загруженных задач, то переходим к новой генерации
-				continue
-			} else {
-				// При нахождении первого ранее не использованного id прерываем цикл
-				taskId = id
+				// Занятый id нам не подходит
+				free = false
 				break
 			}
 		}
+		if free {
+			taskId = id
+			break
+		}
+	}
+
+	// Если новый id так и не записался, то выдаем ошибку
+	if taskId == -1 {
+		return tasks, fmt.Errorf("нет свободных id")
 	}
 
 	newTask := Task{ID: taskId, Description: desc, Done: false}
