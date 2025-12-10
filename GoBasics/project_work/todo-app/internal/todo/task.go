@@ -14,5 +14,5 @@ type Task struct {
 }
 
 func (t Task) Display() {
-	fmt.Printf("%d: %s (выполнена: %t)", t.ID, t.Description, t.Done)
+	fmt.Printf("%d: %s (выполнена: %t)\n", t.ID, t.Description, t.Done)
 }
