@@ -40,9 +40,15 @@ func LoadCSV(path string) ([]todo.Task, error) {
 		if len(row) < 3 {
 			return tasksCSV, fmt.Errorf("ошибка чтения файла csv: не достаточное количество столбцов")
 		}
-		id, _ := strconv.Atoi(row[0])
+		id, err := strconv.Atoi(row[0])
+		if err != nil {
+			return tasksCSV, fmt.Errorf("ошибка чтения файла csv: не получилось преобразовать строку %d к типу int", i)
+		}
 		desc := row[1]
-		done, _ := strconv.ParseBool(row[2])
+		done, err := strconv.ParseBool(row[2])
+		if err != nil {
+			return tasksCSV, fmt.Errorf("ошибка чтения файла csv: не получилось преобразовать строку %d к типу bool", i)
+		}
 
 		// 5. Сформируйте срез []todo.Task.
 		newTask := todo.Task{ID: id, Description: desc, Done: done}
