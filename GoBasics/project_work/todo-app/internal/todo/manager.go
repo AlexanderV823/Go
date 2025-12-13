@@ -112,7 +112,7 @@ func Delete(tasks []Task, id int) ([]Task, error) {
 	}
 
 	if flag {
-		fmt.Printf("Задача №%d отмечена как выполненная\n", id)
+		fmt.Printf("Задача №%d удалена из списка\n", id)
 	} else {
 		fmt.Printf("Задача №%d не найдена в списке\n", id)
 	}
