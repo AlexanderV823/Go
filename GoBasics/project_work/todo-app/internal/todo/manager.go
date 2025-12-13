@@ -12,8 +12,11 @@ func Add(tasks []Task, desc string) ([]Task, error) {
 		free   bool
 	)
 
+	existing_ids := max(len(tasks))
+	counter := max(existing_ids) + 1
+
 	// Ищем свободный id в диапазоне от 1 до 250
-	for id := 1; id < 251; id++ {
+	for id := counter; id < 251; id++ {
 		free = true
 		// Проверяем наличие в срезе с задачами ранее добавленной задачи с таким же id
 		for _, v := range tasks {
