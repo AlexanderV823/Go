@@ -37,11 +37,9 @@ func main() {
 	}
 	cmd = os.Args[1]
 
-	if len(os.Args) < 3 {
-		fmt.Println("Не передан ни один флаг.")
-		os.Exit(1)
+	if len(os.Args) > 1 {
+		args = os.Args[2:]
 	}
-	args = os.Args[2:]
 
 	switch cmd {
 	case "add":
