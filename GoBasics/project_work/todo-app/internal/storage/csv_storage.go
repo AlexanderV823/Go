@@ -37,6 +37,9 @@ func LoadCSV(path string) ([]todo.Task, error) {
 			continue
 		}
 		// 4. Преобразуйте строки: strconv.Atoi для ID, strconv.ParseBool для Done.
+		if len(row) < 3 {
+			return tasksCSV, fmt.Errorf("ошибка чтения файла csv: не достаточное количество столбцов")
+		}
 		id, _ := strconv.Atoi(row[0])
 		desc := row[1]
 		done, _ := strconv.ParseBool(row[2])
