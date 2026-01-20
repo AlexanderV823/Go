@@ -21,7 +21,7 @@ body {
     border: 1px solid #e6e6ee;
     border-radius: 6px;
     padding: 16px;
-    margin: 0 0 12px;
+    margin: 0 10px 12px;
 }
 
 .about__title,
@@ -29,12 +29,12 @@ body {
 .news__title {
     font-weight: 700;
     font-size: 24px;
-    margin: 0 0 12px;
+    margin: 0 10px 12px;
 }
 
 /* Описание */
 .about__text {
-    margin: 0 0 24px;
+    margin: 0 10px 24px;
 }
 
 /* Карточки услуг — простая «сухая» подложка */
@@ -43,19 +43,27 @@ body {
     border: 1px solid #e6e6ee;
     border-radius: 6px;
     padding: 16px;
-    margin: 0 0 12px;
     text-align: center;
-    display: inline-block;
+    flex: 1 1 auto;
+    height: 200px;
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-end;
+    margin: 0 10px;
 }
 
 .news-item {
     background: #f4f6ff;
     border: 1px solid #e6e6ee;
     border-radius: 6px;
-    padding: 16px;
-    margin: 0 0 12px;
+    padding: 26px;
     text-align: left;
-    display: inline-block;
+    flex: 1 1 auto;
+    height: 400px;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    margin: 0 10px;
 }
 
 /* Тексты карточек */
@@ -74,4 +82,9 @@ body {
 .news-item__date {
     color: #5b6b92;
     font-size: 14px;
+}
+
+.wrapper {
+    display: flex;
+    gap: 12px;
 }
