@@ -44,7 +44,7 @@ body {
     border-radius: 6px;
     padding: 16px;
     text-align: center;
-    flex: 1 1 auto;
+    flex: 1 1 0;
     height: 200px;
     display: flex;
     flex-direction: column;
@@ -58,7 +58,7 @@ body {
     border-radius: 6px;
     padding: 26px;
     text-align: left;
-    flex: 1 1 auto;
+    flex: 1 1 0;
     height: 400px;
     display: flex;
     flex-direction: column;
