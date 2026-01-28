@@ -140,3 +140,20 @@ legend {
   border-radius: 2px;
   margin-right: 8px;
 }
+
+.form-filter-field:checked + .form-filter-label::before {
+  background-image: url("https://netology-code.github.io/html/form-elements/img/checked.svg");
+  background-position: center center;
+  background-repeat: no-repeat;
+  background-size: 12px;
+}
+
+.form-filter-field:focus + .form-filter-label::before {
+  outline: 2px solid #30a281;
+  outline-offset: 2px;
+}
+
+.visually-hidden {
+  position: fixed;
+  transform: scale(0);
+}
