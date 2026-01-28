@@ -157,3 +157,14 @@ legend {
   position: fixed;
   transform: scale(0);
 }
+
+.form-filter-button {
+  padding: 15px;
+  width: 100%;
+  background: none;
+  color: #fff;
+  text-transform: uppercase;
+  background-color: #30a281;
+  border-radius: 5px;
+  border: none;
+}
