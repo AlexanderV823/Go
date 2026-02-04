@@ -2,27 +2,30 @@
 
 
 /* начало фрагмента - эти стили трогать нельзя, так как они переиспользуюся в других блоках и страницах сайта */
- .wrp h2 {
-  color: #015cab;
-  font-size: 13px;
-  line-height: 16px;
-  margin-bottom: 9px;
-  font-weight: 400;
+.wrp h2 {
+    color: #015cab;
+    font-size: 13px;
+    line-height: 16px;
+    margin-bottom: 9px;
+    font-weight: 400;
 }
 
 p {
-  font-size: 15px;
-  line-height: 18px;
+    font-size: 15px;
+    line-height: 18px;
 }
 
 .author img {
-  width: 100px;
-  margin-bottom: 6px;
+    width: 100px;
+    margin-bottom: 6px;
 }
 /* конец фрагмента */
 /* стили студента */
 
 /* общие стили - обнуление, body*/
+.content {
+    margin: 0;
+}
 
 /* стили для элементов внутри div.content */
 
