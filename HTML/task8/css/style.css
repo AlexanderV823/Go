@@ -1,18 +1,18 @@
 /* подключение шрифтов - font-face */
 @font-face {
-  font-family: "GolosTextReg";
-  src: local("Golos Text") url("https://github.com/netology-code/html/blob/main/flex-elements-positioning/fonts/golostext-regular.ttf");
-  font-weight: 400;
-  font-style: normal;
-  font-display: swap;
+    font-family: "GolosTextReg";
+    src: local("Golos Text") url("https://github.com/netology-code/html/blob/main/flex-elements-positioning/fonts/golostext-regular.ttf");
+    font-weight: 400;
+    font-style: normal;
+    font-display: swap;
 }
 
 @font-face {
-  font-family: "GolosTextBold";
-  src: local("Golos Text") url("https://github.com/netology-code/html/blob/main/flex-elements-positioning/fonts/golostext-bold.ttf");
-  font-weight: 700;
-  font-style: normal;
-  font-display: swap;
+    font-family: "GolosTextBold";
+    src: local("Golos Text") url("https://github.com/netology-code/html/blob/main/flex-elements-positioning/fonts/golostext-bold.ttf");
+    font-weight: 700;
+    font-style: normal;
+    font-display: swap;
 }
 
 /* начало фрагмента - эти стили трогать нельзя, так как они переиспользуюся в других блоках и страницах сайта */
@@ -33,6 +33,7 @@ p {
     width: 100px;
     margin-bottom: 6px;
 }
+
 /* конец фрагмента */
 /* стили студента */
 
@@ -41,6 +42,7 @@ body {
     font-family: "GolosTextReg", sans-serif;
     font-style: normal;
     font-weight: 400;
+    color: #000000;
 }
 
 .content {
@@ -53,10 +55,11 @@ body {
     line-height: 40px;
 }
 
-.subtitle {
+#subtitle {
     font-weight: 700;
     font-size: 32px;
     line-height: 40px;
+    color: inherit;
 }
 
 .text {
