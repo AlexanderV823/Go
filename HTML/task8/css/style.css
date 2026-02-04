@@ -49,13 +49,18 @@ body {
     margin: 0;
 }
 
+/* стили для элементов внутри div.content */
 .title {
+    font-family: "GolosTextBold", sans-serif;
+    font-style: normal;
     font-weight: 700;
     font-size: 36px;
     line-height: 40px;
 }
 
 #subtitle {
+    font-family: "GolosTextBold", sans-serif;
+    font-style: normal;
     font-weight: 700;
     font-size: 32px;
     line-height: 40px;
@@ -71,7 +76,5 @@ body {
     font-size: 20px;
     line-height: 28px;
 }
-
-/* стили для элементов внутри div.content */
 
 /* стили для сетки */
