@@ -45,8 +45,43 @@ body {
     color: #000000;
 }
 
+.wrp {
+    margin: 0 auto;
+    max-width: 1040px;
+    width: 100%;
+    padding: 40px;
+    display: flex;
+    position: relative;
+}
+
 .content {
+    width: 750px;
     margin: 0;
+    text-align: left;
+    padding-left: 37px;
+}
+
+.author {
+    width: 173px;
+    position: fixed;
+    top: 0;
+    left: 0;
+    margin-top: 40px;
+    margin-left: 40px;
+    padding-top: 40px;  
+}
+
+main .author img {
+    width: 68px;
+    margin: 0;
+}
+
+div.author h2 {
+    margin: 6px 0 0 0;
+}
+
+div.author p {
+    margin: 12px 0 0 0;
 }
 
 /* стили для элементов внутри div.content */
@@ -56,6 +91,7 @@ body {
     font-weight: 700;
     font-size: 36px;
     line-height: 40px;
+    margin: 0 0 34px 0;
 }
 
 #subtitle {
@@ -65,16 +101,19 @@ body {
     font-size: 32px;
     line-height: 40px;
     color: inherit;
+    margin: 0 0 16px 0;
 }
 
 .text {
     font-size: 28px;
     line-height: 35px;
+    margin: 0 0 34px 0;
 }
 
 .text-small {
     font-size: 20px;
     line-height: 28px;
+    margin: 0 0 20px 0;
 }
 
 /* стили для сетки */
