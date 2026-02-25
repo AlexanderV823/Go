@@ -35,24 +35,28 @@ func simulateIOWork(task Task, wg *sync.WaitGroup, results chan<- Result) {
 
 	defer wg.Done()
 
-	start := time.Now()
-
 	fmt.Printf("🔄 Начинаю I/O задачу %d: %s\n", task.ID, task.Name)
 
-	time.Sleep(3 * time.Second)
+	duration := time.Duration(rand.Intn(3)+1) * time.Second
+	time.Sleep(duration)
 
-	elapsed := time.Since(start)
+	success := rand.Float32() < 0.9
 
 	res := Result{
 		TaskID:   task.ID,
 		TaskName: task.Name,
-		Success:  true,
-		Duration: elapsed,
-		Message:  "I/O данные обработаны"}
+		Success:  success,
+		Duration: duration,
+		Message:  fmt.Sprintf("I/O операция завершена за %v", duration)}
+
+	if success {
+		fmt.Printf("✅ Задача %d (%s) успешно выполнена за %v\n", task.ID, task.Name, duration)
+	} else {
+		fmt.Printf("❌ Задача %d (%s) завершилась с ошибкой за %v\n", task.ID, task.Name, duration)
+	}
 
 	results <- res
 
-	fmt.Printf("🔄 Завершаю I/O задачу %d: %s\n", task.ID, task.Name)
 }
 
 // simulateComputeWork имитирует вычислительную задачу
@@ -72,16 +76,19 @@ func simulateComputeWork(task Task, wg *sync.WaitGroup, results chan<- Result) {
 
 	start := time.Now()
 
-	_ = fibonacci(23)
+	n := 35 + rand.Intn(5)
+	fibResult := fibonacci(n)
 
-	elapsed := time.Since(start)
+	duration := time.Since(start)
 
 	res := Result{
 		TaskID:   task.ID,
 		TaskName: task.Name,
 		Success:  true,
-		Duration: elapsed,
-		Message:  "Вычисление числа Фибоначчи выполнено"}
+		Duration: duration,
+		Message:  fmt.Sprintf("Вычислено число Фибоначчи(%d) = %d за %v", n, fibResult, duration)}
+
+	fmt.Printf("🎯 Задача %d (%s): fibonacci(%d) = %d за %v\n", task.ID, task.Name, n, fibResult, duration)
 
 	results <- res
 }
@@ -110,21 +117,22 @@ func monitorProgress(totalTasks int, results <-chan Result, done chan<- bool) {
 	// TODO: Реализуйте отслеживание количества завершенных задач
 	completed := 0
 
-	// Ваш код здесь
-	for i := 0; i < totalTasks; i++ {
+	for {
+		select {
+		case <-ticker.C:
+			fmt.Printf("⏳ Прогресс: %d/%d задач завершено (%.1f%%)\n", completed, totalTasks, float64(completed)/float64(totalTasks)*100)
 
-		
-		
-		
-		go func(id int) {
-			
-			// Увеличение счетчика завершенных задач
-			completed.Add(1)
-			fmt.Printf("Задача %d завершена\n", id)\
-		}(i)
+		case result := <-results:
+			completed++
+			fmt.Printf("🏁 Задача %d завершена: %s\n", result.TaskID, result.TaskName)
+
+			if completed >= totalTasks {
+				fmt.Printf("🎉 Все задачи завершены! (%d/%d)\n", completed, totalTasks)
+				done <- true
+				return
+			}
+		}
 	}
-
-
 }
 
 func main() {
@@ -167,7 +175,7 @@ func main() {
 
 	// TODO: Создайте каналы для результатов и мониторинга
 	results := make(chan Result, totalTasks)
-	monitorDone := make(chan int)
+	monitorDone := make(chan bool)
 
 	// TODO: Создайте WaitGroup для ожидания завершения всех задач
 	var wg sync.WaitGroup
@@ -188,15 +196,15 @@ func main() {
 	// TODO: Запустите I/O задачи в горутинах
 	// Подсказка: используйте цикл for, wg.Add(1) и go simulateIOWork(...)
 	for _, task := range ioTasks {
-	    wg.Add(1)
-	    go simulateIOWork(task, &wg, results)
+		wg.Add(1)
+		go simulateIOWork(task, &wg, results)
 	}
 
 	// TODO: Запустите вычислительные задачи в горутинах
 	// Подсказка: используйте цикл for, wg.Add(1) и go simulateComputeWork(...)
 	for _, task := range computeTasks {
-	    wg.Add(1)
-	    go simulateComputeWork(task, &wg, results)
+		wg.Add(1)
+		go simulateComputeWork(task, &wg, results)
 	}
 
 	// TODO: Выведите количество запущенных горутин
@@ -206,10 +214,10 @@ func main() {
 	wg.Wait()
 
 	// TODO: Закройте канал результатов
-	// Подсказка: используйте close(results)
+	close(results)
 
 	// TODO: Дождитесь завершения мониторинга
-	// Подсказка: читайте из канала monitorDone
+	<-monitorDone
 
 	// TODO: Вычислите общее время выполнения
 	totalExecutionTime := time.Since(startTime)
