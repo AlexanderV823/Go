@@ -18,7 +18,7 @@ type OrderResult struct {
 }
 
 // orderProcesed - выполняет имитацию обработки заказа
-func orderProcesed(ctxParent context.Context, wg *sync.WaitGroup, id int, results chan<- OrderResult) {
+func orderProcessed(ctxParent context.Context, wg *sync.WaitGroup, id int, results chan<- OrderResult) {
 	// Сначало инициализируем defer переданного wg!
 	defer wg.Done()
 
@@ -28,43 +28,40 @@ func orderProcesed(ctxParent context.Context, wg *sync.WaitGroup, id int, result
 	defer cancel()
 
 	fmt.Printf("Start processing order: %d\n", id)
-	for i := 0; i < 3; i++ {
-		select {
-		// Отработка получения сигнала о завершении из родительского контекста:
-		case <-ctxParent.Done():
-			results <- OrderResult{
-				ID:    id,
-				Price: 0,
-				Time:  time.Now(),
-				Err:   ctxParent.Err()}
-			return // Здесь обязателен return, чтобы не было безконечного цикла!
-		// Отработка тайм-аута дочернего контекста:
-		case <-ctxChild.Done():
-			results <- OrderResult{
-				ID:    id,
-				Price: 0,
-				Time:  time.Now(),
-				Err:   ctxChild.Err()}
-			return // Здесь обязателен return, чтобы не было безконечного цикла!
-		default:
-			switch {
-			case id == 1:
-				time.Sleep(3 * time.Second) // Для примера заказ №1 будет всегда завершаться по тайм-ауту ctxChild через 3 секунды
-			case id == 2:
-				time.Sleep(10 * time.Second) // Для примера заказ №2 будет всегда завершаться по тайм-ауту ctxParent через 10 секунд
-			default:
-				time.Sleep(300 * time.Millisecond) // Остальные заказы должны успеть обработаться
-			}
-		}
+
+	var workTime time.Duration
+
+	switch id {
+	case 1:
+		workTime = 3 * time.Second // Для примера заказ №1 будет всегда завершаться по тайм-ауту ctxChild через 3 секунды
+	case 2:
+		workTime = 10 * time.Second // Для примера заказ №2 будет всегда завершаться по тайм-ауту ctxParent через 10 секунд
+	default:
+		workTime = 300 * time.Millisecond // Остальные заказы должны успеть обработаться
 	}
 
-	// После выхода из цикла отправляем сообщение об обработке заказа в канал:
-	results <- OrderResult{
-		ID:    id,
-		Price: rand.Int63n(10000),
-		Time:  time.Now(),
-		Err:   nil}
-	// Здесь уже return не нужен, функция завершится сама. У нее в аргументах ничего нет к возврату
+	select {
+	// Отработка получения сигнала о завершении из родительского контекста:
+	case <-time.After(workTime):
+		results <- OrderResult{
+			ID:    id,
+			Price: rand.Int63n(10000),
+			Time:  time.Now(),
+			Err:   nil}
+	case <-ctxParent.Done():
+		results <- OrderResult{
+			ID:    id,
+			Price: 0,
+			Time:  time.Now(),
+			Err:   ctxParent.Err()}
+	// Отработка тайм-аута дочернего контекста:
+	case <-ctxChild.Done():
+		results <- OrderResult{
+			ID:    id,
+			Price: 0,
+			Time:  time.Now(),
+			Err:   ctxChild.Err()}
+	}
 }
 
 func main() {
@@ -91,8 +88,8 @@ func main() {
 
 	// Цикл для запуска горутин-обработчиков звказов
 	for i := 1; i <= numberOrders; i++ {
-		wg.Add(1)                              // Перед запуском очередной пополняем счетчик wg
-		go orderProcesed(ctx, &wg, i, results) // Передаем родительский контекст, указатель на wg, условный номер заказа и канал куда нужно передать результат обработки
+		wg.Add(1)                               // Перед запуском очередной пополняем счетчик wg
+		go orderProcessed(ctx, &wg, i, results) // Передаем родительский контекст, указатель на wg, условный номер заказа и канал куда нужно передать результат обработки
 	}
 
 	// Отдельной функцией можно (и нужно!) запустить ожидание завершения всех wg и после закрыть канал в который ожидаются результаты обработки заказов
@@ -113,5 +110,7 @@ func main() {
 	// Отрабатываем получение сигнала о завершении из родительского контекста:
 	if ctx.Err() != nil {
 		fmt.Println("Process:", ctx.Err())
+	} else {
+		fmt.Println("Done!")
 	}
 }
