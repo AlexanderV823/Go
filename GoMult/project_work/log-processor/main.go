@@ -46,14 +46,18 @@ func main() {
 	}()
 
 	// Получаем канал в который пишутся строки лога:
-	entryCh, err := readLogs(ctx, filename)
+	pipeCh1, err := readLogs(ctx, filename)
 	if err != nil {
 		log.Printf("error read CSV: %v", err)
 	}
 
 	// Передаем канал со строками лога в worker pool:
-	procCh := processLogs(ctx, entryCh, numWorkers)
+	pipeCh2 := processLogs(ctx, pipeCh1, numWorkers)
 
 	// Передаем на фильтрацию канал
-	filtLogs := filterLogs(procCh, minStatus)
+	pipeCh3 := filterLogs(pipeCh2, minStatus)
+
+	// Передаем канал на финальный сбор статистики:
+	stat := calculateStats(pipeCh3)
+
 }

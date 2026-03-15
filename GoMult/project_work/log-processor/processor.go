@@ -96,15 +96,27 @@ func processLogs(ctx context.Context, input <-chan LogEntry, numWorkers int) <-c
 }
 
 // filterLogs - фильтрует записи по статус-коду
-func filterLogs(input <-chan LogEntry, minStatus int) <-chan LogEntry {
+func filterLogs(ctx context.Context, input <-chan LogEntry, minStatus int) <-chan LogEntry {
 	outCh := make(chan LogEntry)
 
 	go func() {
 		defer close(outCh)
-
-		for entry := range input {
-			if entry.StatusCode > -minStatus {
-				outCh <- entry
+		select {
+		case <-ctx.Done():
+			log.Printf("context cancel: %v", ctx.Err())
+			return
+		case entry, ok := <-input:
+			if !ok {
+				log.Printf("read chan logEntry error")
+				return
+			}
+			if entry.StatusCode >= minStatus {
+				select {
+				case <-ctx.Done():
+					log.Printf("context cancel: %v", ctx.Err())
+					return
+				case outCh <- entry:
+				}
 			}
 		}
 	}()
@@ -112,8 +124,8 @@ func filterLogs(input <-chan LogEntry, minStatus int) <-chan LogEntry {
 }
 
 // calculateStats - выполняет подсчет статистики
-func calculateStats(input <-chan LogEntry) Statistics {
-
+func calculateStats(ctx context.Context, input <-chan LogEntry) Statistics {
+	stats := Statistics
 }
 
 // parseLogLine - выполняет чтение строки CSV в структуру LogEntry
