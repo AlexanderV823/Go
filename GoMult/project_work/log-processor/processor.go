@@ -125,7 +125,38 @@ func filterLogs(ctx context.Context, input <-chan LogEntry, minStatus int) <-cha
 
 // calculateStats - выполняет подсчет статистики
 func calculateStats(ctx context.Context, input <-chan LogEntry) Statistics {
-	stats := Statistics
+	stats := Statistics{
+		RequestsByIP: make(map[string]int)}
+	var totalResponseTime int
+
+	select {
+	case <-ctx.Done():
+		log.Printf("context cancel: %v", ctx.Err())
+		return Statistics{}
+	case entry, ok := <-input:
+		if !ok {
+			log.Printf("read chan logEntry error")
+			return Statistics{}
+		}
+		// Наполняем возвращаемую структуру результатами чтения из исходного файла
+		// Перезаписывем счетчик общего числа запросов
+		stats.TotalRequests++
+
+		// Проверяем код ошибки и при условии пополняем счетчик ошибок
+		if entry.StatusCode >= 400 {
+			stats.ErrorCount++
+		}
+
+		// Пополняем счетчики числа запросов с разных IP
+		stats.RequestsByIP[entry.IP]++
+
+		// Накапливаем общее время запросов
+		totalResponseTime += entry.ResponseTime
+	}
+	if stats.TotalRequests > 0 {
+		stats.AverageRespTime = float64(totalResponseTime) / float64(stats.TotalRequests)
+	}
+	return stats
 }
 
 // parseLogLine - выполняет чтение строки CSV в структуру LogEntry

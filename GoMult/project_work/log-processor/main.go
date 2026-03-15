@@ -55,9 +55,9 @@ func main() {
 	pipeCh2 := processLogs(ctx, pipeCh1, numWorkers)
 
 	// Передаем на фильтрацию канал
-	pipeCh3 := filterLogs(pipeCh2, minStatus)
+	pipeCh3 := filterLogs(ctx, pipeCh2, minStatus)
 
 	// Передаем канал на финальный сбор статистики:
-	stat := calculateStats(pipeCh3)
+	stat := calculateStats(ctx, pipeCh3)
 
 }
