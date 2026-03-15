@@ -138,22 +138,20 @@ func calculateStats(ctx context.Context, input <-chan LogEntry) Statistics {
 			log.Printf("read chan logEntry error")
 			return Statistics{}
 		}
-		// Наполняем возвращаемую структуру результатами чтения из исходного файла
-		// Перезаписывем счетчик общего числа запросов
+		// Наполняем возвращаемую структуру результатами чтения из исходного файла:
+		// 1. Перезаписывем счетчик общего числа запросов
 		stats.TotalRequests++
-
-		// Проверяем код ошибки и при условии пополняем счетчик ошибок
+		// 2. Проверяем код ошибки и при условии пополняем счетчик ошибок
 		if entry.StatusCode >= 400 {
 			stats.ErrorCount++
 		}
-
-		// Пополняем счетчики числа запросов с разных IP
+		// 3. Пополняем счетчики числа запросов с разных IP
 		stats.RequestsByIP[entry.IP]++
-
-		// Накапливаем общее время запросов
+		// 4.1. Накапливаем общее время запросов
 		totalResponseTime += entry.ResponseTime
 	}
 	if stats.TotalRequests > 0 {
+		// 4.2. Записываем среднее время запросов
 		stats.AverageRespTime = float64(totalResponseTime) / float64(stats.TotalRequests)
 	}
 	return stats
@@ -188,5 +186,31 @@ func parseLogLine(line []string) (LogEntry, error) {
 
 // printTopIPs - выводит топ IP-адресов
 func printTopIPs(requestsByIP map[string]int, n int) {
+	tempMap := make(map[string]int, len(requestsByIP))
 
+	for key, value := range requestsByIP {
+		tempMap[key] = value
+	}
+
+	fmt.Printf("\nТоп-%d IP-адресов:\n", n)
+
+	for i := 1; i <= n; i++ {
+		maxCount := -1
+		maxIP := ""
+
+		for ip, count := range tempMap {
+			if count > maxCount {
+				maxCount = count
+				maxIP = ip
+			}
+		}
+
+		if maxIP == "" {
+			break
+		}
+
+		fmt.Printf("%d. %-15s — %d запросов\n", i, maxIP, maxCount)
+
+		delete(tempMap, maxIP)
+	}
 }
