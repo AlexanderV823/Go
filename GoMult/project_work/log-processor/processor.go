@@ -62,12 +62,53 @@ func readLogs(ctx context.Context, filename string) (<-chan LogEntry, error) {
 
 // processLogs - обрабатывает логи через worker pool
 func processLogs(ctx context.Context, input <-chan LogEntry, numWorkers int) <-chan LogEntry {
-	
+	outCh := make(chan LogEntry)
+	var wg sync.WaitGroup
+
+	for i := 0; i < numWorkers; i++ {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			for {
+				select {
+				case <-ctx.Done():
+					return
+				case entry, ok := <-input:
+					if !ok {
+						log.Printf("read chan logEntry error")
+						return
+					}
+					select {
+					case <-ctx.Done():
+						log.Printf("context canceled: %v", ctx.Err())
+						return
+					case outCh <- entry:
+					}
+				}
+			}
+		}()
+	}
+	go func() {
+		wg.Wait()
+		close(outCh)
+	}()
+	return outCh
 }
 
 // filterLogs - фильтрует записи по статус-коду
 func filterLogs(input <-chan LogEntry, minStatus int) <-chan LogEntry {
+	outCh := make(chan LogEntry)
 
+	go func() {
+		defer close(outCh)
+
+		for entry := range input {
+			if entry.StatusCode > -minStatus {
+				outCh <- entry
+			}
+		}
+	}()
+	return outCh
 }
 
 // calculateStats - выполняет подсчет статистики

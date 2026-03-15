@@ -31,24 +31,29 @@ func main() {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
+	// Область задания констант
 	const filename string = "./log-processor/testdata/log.csv"
 	const numWorkers int = 3
-	var wg sync.WaitGroup
+	const minStatus int = 400
 
 	sigCh := make(chan os.Signal, 1)
-	signal.Notify(sigCh, syscall.SIGTERM)
-	
+	signal.Notify(sigCh, os.Interrupt, syscall.SIGTERM)
+
 	go func() {
 		<-sigCh
+		log.Printf("prosecc canceled")
 		cancel()
 	}()
 
-	// Получаем канал в который пишутся строки лога
+	// Получаем канал в который пишутся строки лога:
 	entryCh, err := readLogs(ctx, filename)
 	if err != nil {
 		log.Printf("error read CSV: %v", err)
 	}
 
-	// Передаем канал со строками лога в worker pool
-	processedCh := processLogs(ctx, entryCh, numWorkers)
+	// Передаем канал со строками лога в worker pool:
+	procCh := processLogs(ctx, entryCh, numWorkers)
+
+	// Передаем на фильтрацию канал
+	filtLogs := filterLogs(procCh, minStatus)
 }
