@@ -76,12 +76,7 @@ func processLogs(ctx context.Context, input <-chan LogEntry, numWorkers int) <-c
 					return
 				default:
 					atomic.AddInt64(&totalRequests, 1)
-					select {
-					case <-ctx.Done():
-						log.Printf("context canceled: %v", ctx.Err())
-						return
-					case outCh <- entry:
-					}
+					outCh <- entry
 				}
 			}
 		}()
