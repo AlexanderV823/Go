@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"flag"
 	"fmt"
 	"log"
 	"os"
@@ -25,14 +26,25 @@ type Statistics struct {
 	AverageRespTime float64        // среднее время ответа
 }
 
+var totalRequests int64 // Счетчик общего числа запросов
+
 func main() {
+
+	numWorkers := flag.Int("workers", 3, "количество воркеров для обработки, значение по умолчанию 3")
+	minStatus := flag.Int("status", 400, "минимальный статус-код для фильтрации, значение по умолчанию 400")
+	topIP := flag.Int("top", 3, "количество топ IP-адресов для вывода, значение по умолчанию 3")
+	filename := flag.String("logfile", "testdata/log.csv", "путь к файлу лога, значение по умолчанию testdata/log.csv")
+
+	flag.Parse()
+
+	if _, err := os.Stat(*filename); os.IsNotExist(err) {
+		log.Fatalf("error: file '%s' not found", *filename)
+	}
+
+	fmt.Printf("Запуск: файл=%s, воркеры=%d, мин. статус=%d ТОП-%d IP-адресов\n", *filename, *numWorkers, *minStatus, *topIP)
+
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
-
-	// Область задания констант
-	const filename string = "./testdata/log.csv"
-	const numWorkers int = 3
-	const minStatus int = 400
 
 	sigCh := make(chan os.Signal, 1)
 	signal.Notify(sigCh, os.Interrupt, syscall.SIGTERM)
@@ -44,23 +56,21 @@ func main() {
 	}()
 
 	// Получаем канал в который пишутся строки лога:
-	pipeCh1, err := readLogs(ctx, filename)
+	pipeCh1, err := readLogs(ctx, *filename)
 	if err != nil {
 		log.Printf("error read CSV: %v", err)
 	}
 
 	// Передаем канал со строками лога в worker pool:
-	pipeCh2 := processLogs(ctx, pipeCh1, numWorkers)
+	pipeCh2 := processLogs(ctx, pipeCh1, *numWorkers)
 
 	// Передаем на фильтрацию канал
-	pipeCh3 := filterLogs(ctx, pipeCh2, minStatus)
+	pipeCh3 := filterLogs(ctx, pipeCh2, *minStatus)
 
 	// Передаем канал на финальный сбор статистики:
 	stat := calculateStats(ctx, pipeCh3)
 
-	var topNumIP int
-	fmt.Print("Enter the number of IP addresses to display: ")
-	fmt.Scan(&topNumIP)
+	printStatistics(stat)
 
-	printTopIPs(stat.RequestsByIP, topNumIP)
+	printTopIPs(stat.RequestsByIP, *topIP)
 }

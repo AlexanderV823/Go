@@ -9,6 +9,7 @@ import (
 	"os"
 	"strconv"
 	"sync"
+	"sync/atomic"
 )
 
 // readLogs - выполняет чтение логов из файлов
@@ -74,6 +75,7 @@ func processLogs(ctx context.Context, input <-chan LogEntry, numWorkers int) <-c
 				case <-ctx.Done():
 					return
 				default:
+					atomic.AddInt64(&totalRequests, 1)
 					select {
 					case <-ctx.Done():
 						log.Printf("context canceled: %v", ctx.Err())
@@ -125,20 +127,21 @@ func calculateStats(ctx context.Context, input <-chan LogEntry) Statistics {
 			return stats
 		default:
 			// Наполняем возвращаемую структуру результатами чтения из исходного файла:
-			// 1. Перезаписывем счетчик общего числа запросов
-			stats.TotalRequests++
-			// 2. Проверяем код ошибки и при условии пополняем счетчик ошибок
+			// Проверяем код ошибки и при условии пополняем счетчик ошибок
 			if entry.StatusCode >= 400 {
 				stats.ErrorCount++
 			}
-			// 3. Пополняем счетчики числа запросов с разных IP
+			// Пополняем счетчики числа запросов с разных IP
 			stats.RequestsByIP[entry.IP]++
-			// 4.1. Накапливаем общее время запросов
+			// Накапливаем общее время запросов
 			totalResponseTime += entry.ResponseTime
 		}
 	}
+	// Записываем общее число запросов
+	stats.TotalRequests = int(atomic.LoadInt64(&totalRequests))
+
 	if stats.TotalRequests > 0 {
-		// 4.2. Записываем среднее время запросов
+		// Записываем среднее время запросов
 		stats.AverageRespTime = float64(totalResponseTime) / float64(stats.TotalRequests)
 	}
 	return stats
@@ -200,4 +203,16 @@ func printTopIPs(requestsByIP map[string]int, n int) {
 
 		delete(tempMap, maxIP)
 	}
+}
+
+// printStatistics - выводит расчитанную статистику
+func printStatistics(stats Statistics) {
+
+	fmt.Printf("Всего запросов:      %d\n", stats.TotalRequests)
+	fmt.Printf("Количество ошибок:   %d (%.2f%%)\n",
+		stats.ErrorCount,
+		float64(stats.ErrorCount)/float64(stats.TotalRequests)*100,
+	)
+	fmt.Printf("Среднее время ответа: %.2f мс\n", stats.AverageRespTime)
+
 }
