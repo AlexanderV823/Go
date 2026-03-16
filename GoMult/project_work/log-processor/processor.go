@@ -26,7 +26,7 @@ func readLogs(ctx context.Context, filename string) (<-chan LogEntry, error) {
 		defer file.Close()
 
 		reader := csv.NewReader(file)
-		_, _ = reader.Read() // Skip top line
+		_, _ = reader.Read() // Пропуск заголовка
 
 		for {
 			select {
@@ -36,7 +36,7 @@ func readLogs(ctx context.Context, filename string) (<-chan LogEntry, error) {
 			default:
 				line, err := reader.Read()
 				if err == io.EOF {
-					break
+					return
 				}
 				if err != nil {
 					log.Printf("string read error: %v", err)
@@ -69,15 +69,11 @@ func processLogs(ctx context.Context, input <-chan LogEntry, numWorkers int) <-c
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
-			for {
+			for entry := range input {
 				select {
 				case <-ctx.Done():
 					return
-				case entry, ok := <-input:
-					if !ok {
-						log.Printf("read chan logEntry error")
-						return
-					}
+				default:
 					select {
 					case <-ctx.Done():
 						log.Printf("context canceled: %v", ctx.Err())
@@ -101,21 +97,14 @@ func filterLogs(ctx context.Context, input <-chan LogEntry, minStatus int) <-cha
 
 	go func() {
 		defer close(outCh)
-		select {
-		case <-ctx.Done():
-			log.Printf("context cancel: %v", ctx.Err())
-			return
-		case entry, ok := <-input:
-			if !ok {
-				log.Printf("read chan logEntry error")
+		for entry := range input {
+			select {
+			case <-ctx.Done():
+				log.Printf("context cancel: %v", ctx.Err())
 				return
-			}
-			if entry.StatusCode >= minStatus {
-				select {
-				case <-ctx.Done():
-					log.Printf("context cancel: %v", ctx.Err())
-					return
-				case outCh <- entry:
+			default:
+				if entry.StatusCode >= minStatus {
+					outCh <- entry
 				}
 			}
 		}
@@ -129,26 +118,24 @@ func calculateStats(ctx context.Context, input <-chan LogEntry) Statistics {
 		RequestsByIP: make(map[string]int)}
 	var totalResponseTime int
 
-	select {
-	case <-ctx.Done():
-		log.Printf("context cancel: %v", ctx.Err())
-		return Statistics{}
-	case entry, ok := <-input:
-		if !ok {
-			log.Printf("read chan logEntry error")
-			return Statistics{}
+	for entry := range input {
+		select {
+		case <-ctx.Done():
+			log.Printf("context cancel: %v", ctx.Err())
+			return stats
+		default:
+			// Наполняем возвращаемую структуру результатами чтения из исходного файла:
+			// 1. Перезаписывем счетчик общего числа запросов
+			stats.TotalRequests++
+			// 2. Проверяем код ошибки и при условии пополняем счетчик ошибок
+			if entry.StatusCode >= 400 {
+				stats.ErrorCount++
+			}
+			// 3. Пополняем счетчики числа запросов с разных IP
+			stats.RequestsByIP[entry.IP]++
+			// 4.1. Накапливаем общее время запросов
+			totalResponseTime += entry.ResponseTime
 		}
-		// Наполняем возвращаемую структуру результатами чтения из исходного файла:
-		// 1. Перезаписывем счетчик общего числа запросов
-		stats.TotalRequests++
-		// 2. Проверяем код ошибки и при условии пополняем счетчик ошибок
-		if entry.StatusCode >= 400 {
-			stats.ErrorCount++
-		}
-		// 3. Пополняем счетчики числа запросов с разных IP
-		stats.RequestsByIP[entry.IP]++
-		// 4.1. Накапливаем общее время запросов
-		totalResponseTime += entry.ResponseTime
 	}
 	if stats.TotalRequests > 0 {
 		// 4.2. Записываем среднее время запросов
@@ -184,7 +171,7 @@ func parseLogLine(line []string) (LogEntry, error) {
 		nil
 }
 
-// printTopIPs - выводит топ IP-адресов
+// printTopIPs - выводит топ (n) IP-адресов
 func printTopIPs(requestsByIP map[string]int, n int) {
 	tempMap := make(map[string]int, len(requestsByIP))
 
@@ -209,7 +196,7 @@ func printTopIPs(requestsByIP map[string]int, n int) {
 			break
 		}
 
-		fmt.Printf("%d. %-15s — %d запросов\n", i, maxIP, maxCount)
+		fmt.Printf("%d. %-15s — %d запрос(ов)\n", i, maxIP, maxCount)
 
 		delete(tempMap, maxIP)
 	}

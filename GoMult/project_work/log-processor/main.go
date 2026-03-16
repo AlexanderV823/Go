@@ -2,12 +2,10 @@ package main
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"log"
 	"os"
 	"os/signal"
-	"sync"
 	"syscall"
 )
 
@@ -32,7 +30,7 @@ func main() {
 	defer cancel()
 
 	// Область задания констант
-	const filename string = "./log-processor/testdata/log.csv"
+	const filename string = "./testdata/log.csv"
 	const numWorkers int = 3
 	const minStatus int = 400
 
@@ -60,4 +58,9 @@ func main() {
 	// Передаем канал на финальный сбор статистики:
 	stat := calculateStats(ctx, pipeCh3)
 
+	var topNumIP int
+	fmt.Print("Enter the number of IP addresses to display: ")
+	fmt.Scan(&topNumIP)
+
+	printTopIPs(stat.RequestsByIP, topNumIP)
 }
