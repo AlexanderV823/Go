@@ -9,30 +9,31 @@ import (
 	"os"
 	"strconv"
 	"sync"
-	"sync/atomic"
 )
 
 // readLogs - выполняет чтение логов из файлов
 func readLogs(ctx context.Context, filename string) (<-chan LogEntry, error) {
+	file, err := os.Open(filename)
+	if err != nil {
+
+	}
+
 	outCh := make(chan LogEntry)
 
 	go func() {
 		defer close(outCh)
-
-		file, err := os.Open(filename)
-		if err != nil {
-			log.Printf("open CSV file error: %v", err)
+		defer file.Close()
+		reader := csv.NewReader(file)
+		// Пропуск заголовка
+		if _, err := reader.Read(); err != nil {
+			if err != io.EOF {
+				log.Printf("header CSV file error: %v", err)
+			}
 			return
 		}
-		defer file.Close()
-
-		reader := csv.NewReader(file)
-		_, _ = reader.Read() // Пропуск заголовка
-
 		for {
 			select {
 			case <-ctx.Done():
-				log.Printf("context cancel: %v", ctx.Err())
 				return
 			default:
 				line, err := reader.Read()
@@ -63,23 +64,36 @@ func readLogs(ctx context.Context, filename string) (<-chan LogEntry, error) {
 
 // processLogs - обрабатывает логи через worker pool
 func processLogs(ctx context.Context, input <-chan LogEntry, numWorkers int) <-chan LogEntry {
+	if numWorkers < 3 {
+		numWorkers = 3
+	}
+
 	outCh := make(chan LogEntry)
 	var wg sync.WaitGroup
 
-	for i := 0; i < numWorkers; i++ {
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
-			for entry := range input {
+	worker := func() {
+		defer wg.Done()
+		for {
+			select {
+			case <-ctx.Done():
+				return
+			case entry, ok := <-input:
+				if !ok {
+					return
+				}
+				//
 				select {
 				case <-ctx.Done():
 					return
-				default:
-					atomic.AddInt64(&totalRequests, 1)
-					outCh <- entry
+				case outCh <- entry:
 				}
 			}
-		}()
+		}
+	}
+
+	for i := 0; i < numWorkers; i++ {
+		wg.Add(1)
+		go worker()
 	}
 	go func() {
 		wg.Wait()
@@ -94,14 +108,21 @@ func filterLogs(ctx context.Context, input <-chan LogEntry, minStatus int) <-cha
 
 	go func() {
 		defer close(outCh)
-		for entry := range input {
+		for {
 			select {
 			case <-ctx.Done():
-				log.Printf("context cancel: %v", ctx.Err())
 				return
-			default:
-				if entry.StatusCode >= minStatus {
-					outCh <- entry
+			case entry, ok := <-input:
+				if !ok {
+					return
+				}
+				if entry.StatusCode < minStatus {
+					continue
+				}
+				select {
+				case <-ctx.Done():
+					return
+				case outCh <- entry:
 				}
 			}
 		}
@@ -115,31 +136,27 @@ func calculateStats(ctx context.Context, input <-chan LogEntry) Statistics {
 		RequestsByIP: make(map[string]int)}
 	var totalResponseTime int
 
-	for entry := range input {
+	for {
 		select {
 		case <-ctx.Done():
 			log.Printf("context cancel: %v", ctx.Err())
 			return stats
-		default:
-			// Наполняем возвращаемую структуру результатами чтения из исходного файла:
-			// Проверяем код ошибки и при условии пополняем счетчик ошибок
+		case entry, ok := <-input:
+			if !ok {
+				if stats.TotalRequests > 0 {
+					stats.AverageRespTime = float64(totalResponseTime) / float64(stats.TotalRequests)
+				}
+				return stats
+			}
+
+			stats.TotalRequests++
 			if entry.StatusCode >= 400 {
 				stats.ErrorCount++
 			}
-			// Пополняем счетчики числа запросов с разных IP
 			stats.RequestsByIP[entry.IP]++
-			// Накапливаем общее время запросов
 			totalResponseTime += entry.ResponseTime
 		}
 	}
-	// Записываем общее число запросов
-	stats.TotalRequests = int(atomic.LoadInt64(&totalRequests))
-
-	if stats.TotalRequests > 0 {
-		// Записываем среднее время запросов
-		stats.AverageRespTime = float64(totalResponseTime) / float64(stats.TotalRequests)
-	}
-	return stats
 }
 
 // parseLogLine - выполняет чтение строки CSV в структуру LogEntry

@@ -26,8 +26,6 @@ type Statistics struct {
 	AverageRespTime float64        // среднее время ответа
 }
 
-var totalRequests int64 // Счетчик общего числа запросов
-
 func main() {
 
 	numWorkers := flag.Int("workers", 3, "количество воркеров для обработки, значение по умолчанию 3")
