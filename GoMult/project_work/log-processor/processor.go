@@ -7,18 +7,24 @@ import (
 	"io"
 	"log"
 	"os"
+	"sort"
 	"strconv"
 	"sync"
 )
+
+type IPStat struct {
+	IP    string
+	Count int
+}
 
 // readLogs - выполняет чтение логов из файлов
 func readLogs(ctx context.Context, filename string) (<-chan LogEntry, error) {
 	file, err := os.Open(filename)
 	if err != nil {
-
+		return nil, fmt.Errorf("open CSV file: %w", err)
 	}
 
-	outCh := make(chan LogEntry)
+	outCh := make(chan LogEntry, 100)
 
 	go func() {
 		defer close(outCh)
@@ -45,7 +51,8 @@ func readLogs(ctx context.Context, filename string) (<-chan LogEntry, error) {
 					continue
 				}
 
-				logEntry, err := parseLogLine(line)
+				logEntry, err := parseLogLine(line) // Перенести бы эту обработку в worker pool, а из этой функции возвращать только прочитанную строку.
+				// Но по условимя задачи readLogs должна возвращать (<-chan LogEntry, error)
 				if err != nil {
 					log.Printf("pass line: %v", err)
 					continue
@@ -81,7 +88,7 @@ func processLogs(ctx context.Context, input <-chan LogEntry, numWorkers int) <-c
 				if !ok {
 					return
 				}
-				//
+				// Здесь могла бы быть обработка, но по условиям задачи нужно передавать и возвращать один канал <-chan LogEntry
 				select {
 				case <-ctx.Done():
 					return
@@ -186,44 +193,66 @@ func parseLogLine(line []string) (LogEntry, error) {
 		nil
 }
 
-// printTopIPs - выводит топ (n) IP-адресов
-func printTopIPs(requestsByIP map[string]int, n int) {
-	tempMap := make(map[string]int, len(requestsByIP))
+func fanOut(ctx context.Context, input <-chan LogEntry) (<-chan LogEntry, <-chan LogEntry) {
+	out1 := make(chan LogEntry, 1000)
+	out2 := make(chan LogEntry, 1000)
 
-	for key, value := range requestsByIP {
-		tempMap[key] = value
-	}
-
-	fmt.Printf("\nТоп-%d IP-адресов:\n", n)
-
-	for i := 1; i <= n; i++ {
-		maxCount := -1
-		maxIP := ""
-
-		for ip, count := range tempMap {
-			if count > maxCount {
-				maxCount = count
-				maxIP = ip
+	go func() {
+		defer close(out1)
+		defer close(out2)
+		for entry := range input {
+			select {
+			case <-ctx.Done():
+				return
+			case out1 <- entry:
+			}
+			select {
+			case <-ctx.Done():
+				return
+			case out2 <- entry:
 			}
 		}
+	}()
+	return out1, out2
+}
 
-		if maxIP == "" {
-			break
-		}
+// printTopIPs - выводит топ (n) IP-адресов
+func printTopIPs(requestsByIP map[string]int, n int) {
+	if len(requestsByIP) == 0 {
+		fmt.Println("\nДанные по IP отсутствуют.")
+		return
+	}
 
-		fmt.Printf("%d. %-15s — %d запрос(ов)\n", i, maxIP, maxCount)
+	stats := make([]IPStat, 0, len(requestsByIP))
+	for ip, count := range requestsByIP {
+		stats = append(stats, IPStat{IP: ip, Count: count})
+	}
 
-		delete(tempMap, maxIP)
+	sort.Slice(stats, func(i, j int) bool {
+		return stats[i].Count > stats[j].Count
+	})
+
+	fmt.Printf("\nТоп-%d IP-адресов:\n", n)
+	for i := 0; i < n && i < len(stats); i++ {
+		fmt.Printf("%d. %-15s — %d запрос(ов)\n", i+1, stats[i].IP, stats[i].Count)
 	}
 }
 
 // printStatistics - выводит расчитанную статистику
 func printStatistics(stats Statistics) {
 
+	var errorPercent float64
+
+	if stats.TotalRequests > 0 {
+		errorPercent = float64(stats.ErrorCount) / float64(stats.TotalRequests) * 100
+	} else {
+		errorPercent = 0
+	}
+
 	fmt.Printf("Всего запросов:      %d\n", stats.TotalRequests)
 	fmt.Printf("Количество ошибок:   %d (%.2f%%)\n",
 		stats.ErrorCount,
-		float64(stats.ErrorCount)/float64(stats.TotalRequests)*100,
+		errorPercent,
 	)
 	fmt.Printf("Среднее время ответа: %.2f мс\n", stats.AverageRespTime)
 

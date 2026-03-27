@@ -38,8 +38,19 @@ func TestLogPipeline(t *testing.T) {
 	}
 
 	pipeCh2 := processLogs(ctx, pipeCh1, numWorkers)
-	pipeCh3 := filterLogs(ctx, pipeCh2, minStatus)
-	stat := calculateStats(ctx, pipeCh3)
+
+	statCh, filterCh := fanOut(ctx, pipeCh2)
+
+	var result []LogEntry
+	for entry := range filterLogs(ctx, filterCh, minStatus) {
+		result = append(result, entry)
+	}
+	if len(result) != 2 {
+		t.Errorf("Ожидалось 2 записи с ошибками, получили %d", len(result))
+	}
+
+	// Передаем канал на финальный сбор статистики:
+	stat := calculateStats(ctx, statCh)
 
 	expectedTotal := 5
 	if stat.TotalRequests != expectedTotal {
@@ -51,11 +62,11 @@ func TestLogPipeline(t *testing.T) {
 	}
 
 	count := stat.RequestsByIP["192.168.1.100"]
-	if count != 1 {
-		t.Errorf("Для IP 192.168.1.100 ожидался 1 запрос после фильтрации, получено %d", count)
+	if count != 3 {
+		t.Errorf("Для IP 192.168.1.100 ожидалось 3 запроса, получено %d", count)
 	}
 
-	expectedAvg := 310.00
+	expectedAvg := 400.00
 	if stat.AverageRespTime != expectedAvg {
 		t.Errorf("Ожидалось среднее время %.2f, получили %.2f", expectedAvg, stat.AverageRespTime)
 	}

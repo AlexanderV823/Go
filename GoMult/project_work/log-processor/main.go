@@ -62,11 +62,17 @@ func main() {
 	// Передаем канал со строками лога в worker pool:
 	pipeCh2 := processLogs(ctx, pipeCh1, *numWorkers)
 
-	// Передаем на фильтрацию канал
-	pipeCh3 := filterLogs(ctx, pipeCh2, *minStatus)
+	statCh, filterCh := fanOut(ctx, pipeCh2)
+
+	go func() {
+		filtered := filterLogs(ctx, filterCh, *minStatus)
+		for entry := range filtered {
+			fmt.Printf("Найдена ошибка: %s %d\n", entry.URL, entry.StatusCode)
+		}
+	}()
 
 	// Передаем канал на финальный сбор статистики:
-	stat := calculateStats(ctx, pipeCh3)
+	stat := calculateStats(ctx, statCh)
 
 	printStatistics(stat)
 
