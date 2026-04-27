@@ -1,0 +1,11 @@
+version: '3'
+services:
+volumes:
+networks:
+  my-netology-hw:
+    name: volodin-aa-my-netology-hw
+    driver: bridge
+    ipam:
+    config:
+      - subnet: 10.5.0.0/16
+gateway: 10.5.0.1
