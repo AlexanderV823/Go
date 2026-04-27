@@ -48,3 +48,20 @@ networks:
 gateway: 10.5.0.1
 volumes:
   prometheus_data:
+
+  ## Задача 4
+
+grafana:
+    image: grafana/grafana:latest
+    container_name: volodin-aa-netology-grafana
+    ports:
+      - "80:3000"
+    environment:
+      - GF_PATHS_CONFIG=/etc/grafana/custom.ini
+    volumes:
+      - grafana_data:/var/lib/grafana
+      - ./custom.ini:/etc/grafana/custom.ini:ro
+    networks:
+      volodin-aa-my-netology-hw:
+        ipv4_address: 10.5.0.12
+    restart: always
