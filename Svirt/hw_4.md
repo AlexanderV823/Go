@@ -6,7 +6,7 @@ Docker Compose упрощает запуск и управление сразу 
 Т.е. чтобы запустить приложение, требующее запуск нескольких контейнеров, не нужно поочередно выполнять команды docker run, а выполнить одну docker compose.
 В файде конфигурации описано что и в какой последовательности должеон быть запущено.
 
-## задача 2
+## Задача 2
 
 version: '3'
 services:
@@ -49,7 +49,19 @@ gateway: 10.5.0.1
 volumes:
   prometheus_data:
 
-  ## Задача 4
+## Задача 4
+
+pushgateway:
+    image: prom/pushgateway:latest
+    container_name: volodin-aa-netology-pushgateway
+    ports:
+    - "9091:9091"
+    networks:
+    volodin-aa-my-netology-hw:
+        ipv4_address: 10.5.0.11
+    restart: always
+
+## Задача 5
 
 grafana:
     image: grafana/grafana:latest
