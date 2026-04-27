@@ -1,7 +1,6 @@
 version: '3'
 
 services:
-
   prometheus:
     image: prom/prometheus:latest
     container_name: volodin-aa-netology-prometheus
@@ -25,6 +24,8 @@ services:
         volodin-aa-my-netology-hw:
           ipv4_address: 10.5.0.11
       restart: always
+      depends_on:
+        - prometheus
   grafana:
     image: grafana/grafana:latest
     container_name: volodin-aa-netology-grafana
@@ -39,15 +40,18 @@ services:
       volodin-aa-my-netology-hw:
         ipv4_address: 10.5.0.12
     restart: always
+    depends_on:
+      - prometheus
+      - pushgateway
 
 networks:
-  my-netology-hw:
+  volodin-aa-my-netology-hw:
     name: volodin-aa-my-netology-hw
     driver: bridge
     ipam:
-    config:
-      - subnet: 10.5.0.0/16
-gateway: 10.5.0.1
+      config:
+        - subnet: 10.5.0.0/16
+          gateway: 10.5.0.1
 
 volumes:
   prometheus_data:

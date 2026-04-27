@@ -77,3 +77,7 @@ grafana:
       volodin-aa-my-netology-hw:
         ipv4_address: 10.5.0.12
     restart: always
+
+## Задача 6
+
+Добавлены разделы depends_on: для pushgateway и grafana. Раздел restart: always был сразу добавлен.
