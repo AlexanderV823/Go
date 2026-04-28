@@ -92,4 +92,81 @@ grafana:
 
 ## Задача 8
 
-![Скрин 3](./hw4-7_3.jpg)
+![Скрин 3](./hw4-8_1.jpg)
+
+## Задача 9
+
+![Скрин 4](./hw4-9_1.jpg)
+
+## Задача 10
+
+Все описанные действия по данному ДЗ выполнялись в YandexCloud на ВМ, на которой установлена СУБД Postgres.
+Для себя составил такую шпаргалку:
+
+### Установка Docker
+
+1. Установка
+   sudo apt update
+   sudo apt install docker.io -y
+
+2. Запуск службы
+
+sudo systemctl enable --now docker
+
+3. Настройка Post-install
+
+sudo groupadd docker
+
+sudo usermod -aG docker $USER
+
+4. Чтобы не перезагружать компьютер, можно обновить права в текущей сессии терминала:
+
+newgrp docker
+
+5. Проверка
+
+docker run hello-world
+
+6. Установка Docker Compose
+
+sudo apt-get update && sudo apt-get install ca-certificates curl gnupg
+
+sudo install -m 0755 -d /etc/apt/keyrings
+curl -fsSL https://download.docker.com/linux/ubuntu/gpg | sudo gpg --dearmor -o /etc/apt/keyrings/docker.gpg
+sudo chmod a+r /etc/apt/keyrings/docker.gpg
+
+echo \
+  "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.gpg] https://download.docker.com/linux/ubuntu \
+  $(. /etc/os-release && echo "$VERSION_CODENAME") stable" | \
+  sudo tee /etc/apt/sources.list.d/docker.list > /dev/null
+
+sudo apt-get update && sudo apt-get install docker-compose-plugin
+
+7. Проверка
+
+docker compose version
+
+### Запуск системы мониторинга
+
+1. Перенос конфигурации на сервер
+
+ssh -i <файл_ключа> пользователь@ip-сервера "mkdir -p ~/my-monitoring"
+
+scp -i <файл_ключа> docker-compose.yml prometheus.yml custom.ini <username>@<IP_сервера>:~/my-monitoring
+
+2. Запуск
+
+cd ~/my-monitoring
+docker compose up -d
+
+3. Проверка
+
+docker compose ps
+docker logs volodin-aa-netology-grafana
+
+Grafana: http://<IP_сервера>:80
+Prometheus: http://<IP_сервера>:9090
+
+4. Остановка
+
+docker compose down

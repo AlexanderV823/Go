@@ -43,6 +43,20 @@ services:
     depends_on:
       - prometheus
       - pushgateway
+  alertmanager:
+    image: prom/alertmanager:latest
+    container_name: volodin-aa-netology-alertmanager
+    ports:
+      - "9093:9093"
+    volumes:
+      - ./alertmanager.yml:/etc/alertmanager/alertmanager.yml:ro
+      - alertmanager_data:/data
+    networks:
+      volodin-aa-my-netology-hw:
+        ipv4_address: 10.5.0.13
+    depends_on:
+      - prometheus
+    restart: always
 
 networks:
   volodin-aa-my-netology-hw:
@@ -56,3 +70,4 @@ networks:
 volumes:
   prometheus_data:
   grafana_data:
+  alertmanager_data:
