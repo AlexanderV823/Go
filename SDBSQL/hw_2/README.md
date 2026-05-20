@@ -103,7 +103,7 @@ WHERE
 
 ![Скрин 9](./hw2-1_9.jpg)
 
-## Задача 2
+## Задание 2
 
 SELECT
     TABLE_NAME AS 'Название таблицы',
@@ -117,3 +117,21 @@ ORDER BY
     TABLE_NAME;
 
 [Решение](./KEY_COLUMN_USAGE_202605202111.json "Выгрузка запроса")
+
+## Задание 3
+
+1. Уберите у пользователя sys_temp права на внесение, изменение и удаление данных из базы sakila.
+
+docker exec -it mysql-clean mysql -u root -p
+
+REVOKE ALL PRIVILEGES, GRANT OPTION FROM 'sys_temp'@'localhost';
+
+GRANT SELECT ON sakila.* TO 'sys_temp'@'localhost';
+
+FLUSH PRIVILEGES;
+
+2. Выполните запрос на получение списка прав для пользователя sys_temp.
+
+SHOW GRANTS FOR 'sys_temp'@'localhost';
+
+![Скрин 9](./hw2-2_1.jpg)
