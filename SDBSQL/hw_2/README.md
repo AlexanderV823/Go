@@ -100,3 +100,5 @@ WHERE
     REFERENCED_TABLE_SCHEMA = 'sakila';
 
 ![Скрин 8](./hw2-1_8.jpg)
+
+![Скрин 9](./hw2-1_9.jpg)
