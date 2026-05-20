@@ -102,3 +102,18 @@ WHERE
 ![Скрин 8](./hw2-1_8.jpg)
 
 ![Скрин 9](./hw2-1_9.jpg)
+
+## Задача 2
+
+SELECT
+    TABLE_NAME AS 'Название таблицы',
+    COLUMN_NAME AS 'Название первичного ключа'
+FROM
+    INFORMATION_SCHEMA.KEY_COLUMN_USAGE
+WHERE
+    TABLE_SCHEMA = 'sakila'
+    AND CONSTRAINT_NAME = 'PRIMARY'
+ORDER BY
+    TABLE_NAME;
+
+[Решение](./KEY_COLUMN_USAGE_202605202111.json "Выгрузка запроса")
