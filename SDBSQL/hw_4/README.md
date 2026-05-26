@@ -20,3 +20,11 @@ JOIN city c ON a.city_id = c.city_id
 JOIN customer cust ON st.store_id = cust.store_id
 GROUP BY st.store_id, s.first_name, s.last_name, c.city
 HAVING COUNT(cust.customer_id) > 300;
+
+## Задача 2
+
+Получите количество фильмов, продолжительность которых больше средней продолжительности всех фильмов.
+
+SELECT COUNT(*) AS high_duration_films_count
+FROM film
+WHERE length > (SELECT AVG(length) FROM film);
