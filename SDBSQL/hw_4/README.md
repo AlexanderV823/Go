@@ -28,3 +28,16 @@ HAVING COUNT(cust.customer_id) > 300;
 SELECT COUNT(*) AS high_duration_films_count
 FROM film
 WHERE length > (SELECT AVG(length) FROM film);
+
+## Задача 3
+
+Получите информацию, за какой месяц была получена наибольшая сумма платежей, и добавьте информацию по количеству аренд за этот месяц.
+
+SELECT
+    DATE_FORMAT(payment_date, '%Y-%m') AS payment_month,
+    SUM(amount) AS total_amount,
+    COUNT(DISTINCT rental_id) AS total_rentals
+FROM payment
+GROUP BY payment_month
+ORDER BY total_amount DESC
+LIMIT 1;
