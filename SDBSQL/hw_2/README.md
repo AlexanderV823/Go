@@ -6,7 +6,7 @@
 
 docker run --name mysql-clean -e MYSQL_ROOT_PASSWORD=<my-secret-pw> -d -p 3306:3306 mysql:latest
 
-docker exec -it mysql-clean mysql -uroot -p<my-secret-pw>
+docker exec -it mysql-clean mysql -uroot -p'<my-secret-pw>'
 
 ![Скрин 1](./hw2-1_1.jpg)
 
