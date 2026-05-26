@@ -58,3 +58,16 @@ SELECT
 FROM staff s
 JOIN payment p ON s.staff_id = p.staff_id
 GROUP BY s.staff_id, s.first_name, s.last_name;
+
+## Задание 4
+
+Найдите фильмы, которые ни разу не брали в аренду.
+
+SELECT
+    f.film_id,
+    f.title,
+    f.release_year
+FROM film f
+LEFT JOIN inventory i ON f.film_id = i.film_id
+LEFT JOIN rental r ON i.inventory_id = r.inventory_id
+WHERE r.rental_id IS NULL;
