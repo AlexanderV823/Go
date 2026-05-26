@@ -21,7 +21,7 @@ JOIN customer cust ON st.store_id = cust.store_id
 GROUP BY st.store_id, s.first_name, s.last_name, c.city
 HAVING COUNT(cust.customer_id) > 300;
 
-## Задача 2
+## Задание 2
 
 Получите количество фильмов, продолжительность которых больше средней продолжительности всех фильмов.
 
@@ -29,7 +29,7 @@ SELECT COUNT(*) AS high_duration_films_count
 FROM film
 WHERE length > (SELECT AVG(length) FROM film);
 
-## Задача 3
+## Задание 3
 
 Получите информацию, за какой месяц была получена наибольшая сумма платежей, и добавьте информацию по количеству аренд за этот месяц.
 
@@ -41,3 +41,20 @@ FROM payment
 GROUP BY payment_month
 ORDER BY total_amount DESC
 LIMIT 1;
+
+## Задание 4
+
+Посчитайте количество продаж, выполненных каждым продавцом. Добавьте вычисляемую колонку «Премия». Если количество продаж превышает 8000, то значение в колонке будет «Да», иначе должно быть значение «Нет».
+
+SELECT
+    s.staff_id,
+    s.first_name,
+    s.last_name,
+    COUNT(p.payment_id) AS total_sales,
+    CASE
+        WHEN COUNT(p.payment_id) > 8000 THEN 'Да'
+        ELSE 'Нет'
+    END AS `Премия`
+FROM staff s
+JOIN payment p ON s.staff_id = p.staff_id
+GROUP BY s.staff_id, s.first_name, s.last_name;
