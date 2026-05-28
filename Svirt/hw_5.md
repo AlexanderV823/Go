@@ -161,3 +161,42 @@ redis-cli -p 6379 ping
 kubectl delete pod redis-6558964d74-8kv2f
 
 ![Скрин 10](./hw5-3_5.jpg)
+
+## Задача 4
+
+Есть конфигурация nginx:
+
+location / {
+    add_header Content-Type text/plain;
+    return 200 'Hello from k8s';
+}
+
+1. Напишите yaml-файлы для развёртки nginx, в которых будут присутствовать:
+
+* ConfigMap с конфигом nginx;
+
+[Создание конфигурации (ConfigMap)](ConfigMap.yaml)
+
+* Deployment, который бы подключал этот configmap;
+
+[Создание Deployment и Service](DeploymentAndService.yaml)
+
+* Ingress, который будет направлять запросы по префиксу /test на наш сервис.
+
+[Создание правила маршрутизации (Ingress)](Ingress.yaml)
+
+* Можно запустить все в одном файле
+
+cd ~ && kubectl apply -f nginx-k8s.yaml
+
+![Скрин 11](./hw5-4_1.jpg)
+
+* Проверка
+
+kubectl get cm,deploy,pod,svc,ing -l app=nginx
+
+kubectl get ingress nginx-ingress
+
+curl -i http://<IP-cluster>/test
+
+![Скрин 12](./hw5-4_2.jpg)
