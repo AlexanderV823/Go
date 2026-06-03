@@ -48,22 +48,34 @@ docker exec -it pg-slave psql -U postgres -d mydb -c "INSERT INTO test_sync (val
 
 ## Задание 2
 
-                      [ API Gateway / Application Layer ]
-                         /                           \
-         (Route by Functional Domain)          (Route by Functional Domain)
-                       /                                       \
-         [ User Service / Router ]                      [ Catalog Service ]
-          /                     \                               |
-  hash(id)%2=0              hash(id)%2=1                        |
-        /                         \                             |
-[ USER SHARD 1 ]           [ USER SHARD 2 ]             [ CATALOG SHARD ]
-(Таблица: users A-M)       (Таблица: users N-Z)         (Таблицы: books, shops)
-  Режим: Read/Write          Режим: Read/Write            Режим: Read/Write
+graph TD
+    %% Стилизация элементов
+    classDef app fill:#e1f5fe,stroke:#0288d1,stroke-width:2px;
+    classDef router fill:#fff9c4,stroke:#fbc02d,stroke-width:2px;
+    classDef master fill:#e8f5e9,stroke:#388e3c,stroke-width:2px;
+    classDef slave fill:#ffebee,stroke:#d32f2f,stroke-width:2px;
 
-        |                          |                            |
-        v                          v                            v
-[ USER REPLICA 1 ]         [ USER REPLICA 2 ]           [ CATALOG REPLICA ]
-  Режим: Read-Only           Режим: Read-Only             Режим: Read-Only
+    %% Слой приложения
+    App[Бэкенд Приложения / API Gateway]:::app
+    Router{Маршрутизатор Запросов<br/>Data Access Layer}:::router
+
+    App --> Router
+
+    %% Вертикальное шардирование
+    Router -->|Запросы Книг / Магазинов| CatM[Catalog Shard: MASTER<br/>Порт: 5435<br/>Режим: Read/Write]:::master
+    CatM -->|Асинхронная репликация| CatS[Catalog Shard: SLAVE<br/>Порт: 5436<br/>Режим: Read-Only]:::slave
+
+    %% Горизонтальное шардирование пользователей
+    Router -->|Пользователи: hash ID % 2 != 0| User1M[User Shard 1: MASTER<br/>Порт: 5437<br/>Режим: Read/Write]:::master
+    User1M -->|Асинхронная репликация| User1S[User Shard 1: SLAVE<br/>Порт: 5438<br/>Режим: Read-Only]:::slave
+
+    Router -->|Пользователи: hash ID % 2 == 0| User2M[User Shard 2: MASTER<br/>Порт: 5439<br/>Режим: Read/Write]:::master
+    User2M -->|Асинхронная репликация| User2S[User Shard 2: SLAVE<br/>Порт: 5440<br/>Режим: Read-Only]:::slave
+
+    %% Связи для чтения
+    Router -.->|Тяжелые SELECT запросы| CatS
+    Router -.->|Тяжелые SELECT запросы| User1S
+    Router -.->|Тяжелые SELECT запросы| User2S
 
 Для обеспечения высокой доступности и отказоустойчивости каждый шард разворачивается в режиме Primary-Standby (Master-Slave) репликации:
 1. Основной слой (Primary / Master):
@@ -112,12 +124,9 @@ DRBD (Distributed Replicated Block Device) работает на уровне я
 
 5. Сравнительная таблица методов
 
-|: Критерий :|: Master + 1 Пассивный Slave :|: Master + Много Slaves:|: Активный сервер + DRBD:|:SAN-кластер:|
-| --- | --- | --- | --- | --- |
+| Критерий | Master + 1 Пассивный Slave | Master + Много Slaves | Активный сервер + DRBD | SAN-кластер |
 | Основной упор  | Надежность (HA) | Скорость чтения | Целостность диска | Отсутствие задержек |
-| --- | --- | --- | --- | --- |
 | Уровень работы  | Логический (СУБД) | Логический (СУБД) | Блочный (Ядро ОС) | Аппаратный (Железо) |
-| --- | --- | --- | --- | --- |
 | Основной упор  | Минимальная | Зависит от нагрузки | Нулевая (при синхронном) | Полностью отсутствует |
 
 ## Задача 4
@@ -134,14 +143,10 @@ docker compose ps
 
 * Используемые порты
 
-|: Контейнер:|: Назначение :|: Порт :|: Разрешенные операции :|
-| --- | --- | --- | --- |
+| Контейнер | Назначение | Порт | Разрешенные операции |
 | pg-catalog-master | Книги и магазины | 5435 | Запись + Чтение |
-| --- | --- | --- | --- |
 | pg-catalog-slave | Книги и магазины (Реплика) | 5436 | Только SELECT |
-| --- | --- | --- | --- |
 | pg-user1-master | Пользователи (Нечетные ID) | 5437 | Запись + Чтение |
-| --- | --- | --- | --- |
 | pg-user1-slave | Пользователи (Нечетные ID, Реплика) | 5438 | Только SELECT |
 
 * Проверка кластера Каталога (Книги/Магазины)
