@@ -1,0 +1,163 @@
+services:
+  # ============================================================================
+  # КЛАСТЕР 1: ВЕРТИКАЛЬНЫЙ ШАРД (КАТАЛОГ: КНИГИ И МАГАЗИНЫ)
+  # ============================================================================
+  pg-catalog-master:
+    image: postgres:16-alpine
+    container_name: pg-catalog-master
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: catalog_master_password
+      POSTGRES_DB: catalog_db
+    ports:
+      - "5435:5432" # Master каталога
+    volumes:
+      - pg-catalog-master-data:/var/lib/postgresql/data
+    entrypoint: [ "/bin/sh" ]
+    command:
+      - "-c"
+      - |
+        mkdir -p /docker-entrypoint-initdb.d
+        echo 'echo "host replication postgres all trust" >> /var/lib/postgresql/data/pg_hba.conf' > /docker-entrypoint-initdb.d/01-init-replication.sh
+        chmod +x /docker-entrypoint-initdb.d/01-init-replication.sh
+        exec docker-entrypoint.sh postgres -c wal_level=replica -c max_wal_senders=10 -c wal_keep_size=1024MB
+
+  pg-catalog-slave:
+    image: postgres:16-alpine
+    container_name: pg-catalog-slave
+    environment:
+      POSTGRES_PASSWORD: catalog_slave_password
+    ports:
+      - "5436:5432" # Slave каталога (Read-Only)
+    depends_on:
+      - pg-catalog-master
+    volumes:
+      - pg-catalog-slave-data:/var/lib/postgresql/data
+    entrypoint: [ "/bin/sh" ]
+    command:
+      - "-c"
+      - |
+        until pg_isready -h pg-catalog-master -U postgres; do
+          echo 'Ожидание запуска Catalog Master...'
+          sleep 2
+        done
+        if [ -z "$(ls -A /var/lib/postgresql/data)" ]; then
+          PGPASSWORD=catalog_master_password pg_basebackup -h pg-catalog-master -D /var/lib/postgresql/data -U postgres -v -R -X stream
+        fi
+        chmod 700 /var/lib/postgresql/data
+        chown -R postgres:postgres /var/lib/postgresql/data
+        exec gosu postgres postgres
+
+  # ============================================================================
+  # КЛАСТЕР 2: ГОРИЗОНТАЛЬНЫЙ ШАРД 1 (ПОЛЬЗОВАТЕЛИ: НЕЧЕТНЫЕ ID)
+  # ============================================================================
+  pg-user1-master:
+    image: postgres:16-alpine
+    container_name: pg-user1-master
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: user1_master_password
+      POSTGRES_DB: user_db
+    ports:
+      - "5437:5432" # Master пользователей (Шард 1)
+    volumes:
+      - pg-user1-master-data:/var/lib/postgresql/data
+    entrypoint: [ "/bin/sh" ]
+    command:
+      - "-c"
+      - |
+        mkdir -p /docker-entrypoint-initdb.d
+        echo 'echo "host replication postgres all trust" >> /var/lib/postgresql/data/pg_hba.conf' > /docker-entrypoint-initdb.d/01-init-replication.sh
+        chmod +x /docker-entrypoint-initdb.d/01-init-replication.sh
+        exec docker-entrypoint.sh postgres -c wal_level=replica -c max_wal_senders=10 -c wal_keep_size=1024MB
+
+  pg-user1-slave:
+    image: postgres:16-alpine
+    container_name: pg-user1-slave
+    environment:
+      POSTGRES_PASSWORD: user1_slave_password
+    ports:
+      - "5438:5432" # Slave пользователей (Шард 1 - Read-Only)
+    depends_on:
+      - pg-user1-master
+    volumes:
+      - pg-user1-slave-data:/var/lib/postgresql/data
+    entrypoint: [ "/bin/sh" ]
+    command:
+      - "-c"
+      - |
+        until pg_isready -h pg-user1-master -U postgres; do
+          echo 'Ожидание запуска User1 Master...'
+          sleep 2
+        done
+        if [ -z "$(ls -A /var/lib/postgresql/data)" ]; then
+          PGPASSWORD=user1_master_password pg_basebackup -h pg-user1-master -D /var/lib/postgresql/data -U postgres -v -R -X stream
+        fi
+        chmod 700 /var/lib/postgresql/data
+        chown -R postgres:postgres /var/lib/postgresql/data
+        exec gosu postgres postgres
+
+  # ============================================================================
+  # КЛАСТЕР 3: ГОРИЗОНТАЛЬНЫЙ ШАРД 2 (ПОЛЬЗОВАТЕЛИ: ЧЕТНЫЕ ID)
+  # ============================================================================
+  pg-user2-master:
+    image: postgres:16-alpine
+    container_name: pg-user2-master
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: user2_master_password
+      POSTGRES_DB: user_db
+    ports:
+      - "5439:5432" # Master пользователей (Шард 2)
+    volumes:
+      - pg-user2-master-data:/var/lib/postgresql/data
+    entrypoint: [ "/bin/sh" ]
+    command:
+      - "-c"
+      - |
+        mkdir -p /docker-entrypoint-initdb.d
+        echo 'echo "host replication postgres all trust" >> /var/lib/postgresql/data/pg_hba.conf' > /docker-entrypoint-initdb.d/01-init-replication.sh
+        chmod +x /docker-entrypoint-initdb.d/01-init-replication.sh
+        exec docker-entrypoint.sh postgres -c wal_level=replica -c max_wal_senders=10 -c wal_keep_size=1024MB
+
+  pg-user2-slave:
+    image: postgres:16-alpine
+    container_name: pg-user2-slave
+    environment:
+      POSTGRES_PASSWORD: user2_slave_password
+    ports:
+      - "5440:5432" # Slave пользователей (Шард 2 - Read-Only)
+    depends_on:
+      - pg-user2-master
+    volumes:
+      - pg-user2-slave-data:/var/lib/postgresql/data
+    entrypoint: [ "/bin/sh" ]
+    command:
+      - "-c"
+      - |
+        until pg_isready -h pg-user2-master -U postgres; do
+          echo 'Ожидание запуска User2 Master...'
+          sleep 2
+        done
+        if [ -z "$(ls -A /var/lib/postgresql/data)" ]; then
+          PGPASSWORD=user2_master_password pg_basebackup -h pg-user2-master -D /var/lib/postgresql/data -U postgres -v -R -X stream
+        fi
+        chmod 700 /var/lib/postgresql/data
+        chown -R postgres:postgres /var/lib/postgresql/data
+        exec gosu postgres postgres
+
+# ============================================================================
+# СЕТИ И ТОМА
+# ============================================================================
+volumes:
+  pg-catalog-master-data:
+  pg-catalog-slave-data:
+  pg-user1-master-data:
+  pg-user1-slave-data:
+  pg-user2-master-data:
+  pg-user2-slave-data:
+
+networks:
+  default:
+    name: pg-sharding-net
+    driver: bridge
