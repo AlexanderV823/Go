@@ -48,6 +48,7 @@ docker exec -it pg-slave psql -U postgres -d mydb -c "INSERT INTO test_sync (val
 
 ## Задание 2
 
+```
                +----------------------------------------+
                |      Бэкенд приложения / API Gateway   |
                +----------------------------------------+
@@ -73,6 +74,7 @@ docker exec -it pg-slave psql -U postgres -d mydb -c "INSERT INTO test_sync (val
 | Порт: 5436       |       |  Порт: 5438       |       |  Порт: 5440       |
 | Режим: Read-Only |       |  Режим: Read-Only |       |  Режим: Read-Only |
 +------------------+       +------------------+       +------------------+
+```
 
 Для обеспечения высокой доступности и отказоустойчивости каждый шард разворачивается в режиме Primary-Standby (Master-Slave) репликации:
 
