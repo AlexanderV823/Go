@@ -113,9 +113,104 @@ DRBD (Distributed Replicated Block Device) работает на уровне я
 5. Сравнительная таблица методов
 
 |: Критерий :|: Master + 1 Пассивный Slave :|: Master + Много Slaves:|: Активный сервер + DRBD:|:SAN-кластер:|
-| --- | --- | --- |
+| --- | --- | --- | --- | --- |
 | Основной упор  | Надежность (HA) | Скорость чтения | Целостность диска | Отсутствие задержек |
-| --- | --- | --- |
+| --- | --- | --- | --- | --- |
 | Уровень работы  | Логический (СУБД) | Логический (СУБД) | Блочный (Ядро ОС) | Аппаратный (Железо) |
-| --- | --- | --- |
+| --- | --- | --- | --- | --- |
 | Основной упор  | Минимальная | Зависит от нагрузки | Нулевая (при синхронном) | Полностью отсутствует |
+
+## Задача 4
+
+* Переносим или редактируем Docker Compose файл: [docker-compose.yml](./docker-compose_2.yml)
+
+nano docker-compose.yml
+
+* Разворачиваем и проверяем работу
+
+docker compose up -d
+
+docker compose ps
+
+* Используемые порты
+
+|: Контейнер:|: Назначение :|: Порт :|: Разрешенные операции :|
+| --- | --- | --- | --- |
+| pg-catalog-master | Книги и магазины | 5435 | Запись + Чтение |
+| --- | --- | --- | --- |
+| pg-catalog-slave | Книги и магазины (Реплика) | 5436 | Только SELECT |
+| --- | --- | --- | --- |
+| pg-user1-master | Пользователи (Нечетные ID) | 5437 | Запись + Чтение |
+| --- | --- | --- | --- |
+| pg-user1-slave | Пользователи (Нечетные ID, Реплика) | 5438 | Только SELECT |
+
+* Проверка кластера Каталога (Книги/Магазины)
+
+docker exec -it pg-catalog-master psql -U postgres -d catalog_db -c "SELECT application_name, state FROM pg_stat_replication;"
+
+* Проверка кластера Пользователей (Шард 1 — Нечетные)
+
+docker exec -it pg-user1-master psql -U postgres -d user_db -c "SELECT application_name, state FROM pg_stat_replication;"
+
+* Проверка кластера Пользователей (Шард 2 — Четные)
+
+docker exec -it pg-user2-master psql -U postgres -d user_db -c "SELECT application_name, state FROM pg_stat_replication;"
+
+![Скрин 6](./hw6-4_1.jpg)
+
+* Тестирование вертикального шардинга (Каталог)
+
+* Запись на Master
+
+docker exec -it pg-catalog-master psql -U postgres -d catalog_db -c "
+CREATE TABLE IF NOT EXISTS shops (shop_id INT PRIMARY KEY, title TEXT);
+CREATE TABLE IF NOT EXISTS books (book_id INT PRIMARY KEY, title TEXT, shop_id INT);
+INSERT INTO shops VALUES (1, 'Буквоед');
+INSERT INTO books VALUES (10, 'Капитанская дочка', 1);
+"
+
+* Чтение со Slave
+
+docker exec -it pg-catalog-slave psql -U postgres -d catalog_db -c "SELECT * FROM books;"
+
+![Скрин 7](./hw6-4_2.jpg)
+
+* Тестирование горизонтального шардинга (Пользователи)
+
+* Запись структуры на Шард 1
+
+docker exec -it pg-user1-master psql -U postgres -d user_db -c "
+CREATE TABLE IF NOT EXISTS users (user_id INT PRIMARY KEY, name TEXT, CONSTRAINT chk_odd CHECK (user_id % 2 != 0));
+"
+
+* Запись структуры на Шард 2
+
+docker exec -it pg-user2-master psql -U postgres -d user_db -c "
+CREATE TABLE IF NOT EXISTS users (user_id INT PRIMARY KEY, name TEXT, CONSTRAINT chk_even CHECK (user_id % 2 = 0));
+"
+
+* Проверка правильности записи на Шард 1 пользователя Иван (ID=1)
+
+docker exec -it pg-user1-master psql -U postgres -d user_db -c "INSERT INTO users VALUES (1, 'Иван');"
+
+* Проверка правильности записи на Шард 2 пользователя Анна (ID=2)
+
+docker exec -it pg-user2-master psql -U postgres -d user_db -c "INSERT INTO users VALUES (2, 'Анна');"
+
+* Проверка Реплики 1 (д.б. Иван)
+
+docker exec -it pg-user1-slave psql -U postgres -d user_db -c "SELECT * FROM users;"
+
+* Проверка Реплики 2 (д.б. выведена Анна)
+
+docker exec -it pg-user2-slave psql -U postgres -d user_db -c "SELECT * FROM users;"
+
+![Скрин 7](./hw6-4_3.jpg)
+
+* Тест проверки ограничений шардинга
+
+Отправка пользователя с четным ID на нечетный шард
+
+docker exec -it pg-user1-master psql -U postgres -d user_db -c "INSERT INTO users VALUES (4, 'Петр');"
+
+![Скрин 8](./hw6-4_4.jpg)
