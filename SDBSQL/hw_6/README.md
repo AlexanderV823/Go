@@ -48,41 +48,42 @@ docker exec -it pg-slave psql -U postgres -d mydb -c "INSERT INTO test_sync (val
 
 ## Задание 2
 
-graph TD
-    %% Стилизация элементов
-    classDef app fill:#e1f5fe,stroke:#0288d1,stroke-width:2px;
-    classDef router fill:#fff9c4,stroke:#fbc02d,stroke-width:2px;
-    classDef master fill:#e8f5e9,stroke:#388e3c,stroke-width:2px;
-    classDef slave fill:#ffebee,stroke:#d32f2f,stroke-width:2px;
-
-    %% Слой приложения
-    App[Бэкенд Приложения / API Gateway]:::app
-    Router{Маршрутизатор Запросов<br/>Data Access Layer}:::router
-
-    App --> Router
-
-    %% Вертикальное шардирование
-    Router -->|Запросы Книг / Магазинов| CatM[Catalog Shard: MASTER<br/>Порт: 5435<br/>Режим: Read/Write]:::master
-    CatM -->|Асинхронная репликация| CatS[Catalog Shard: SLAVE<br/>Порт: 5436<br/>Режим: Read-Only]:::slave
-
-    %% Горизонтальное шардирование пользователей
-    Router -->|Пользователи: hash ID % 2 != 0| User1M[User Shard 1: MASTER<br/>Порт: 5437<br/>Режим: Read/Write]:::master
-    User1M -->|Асинхронная репликация| User1S[User Shard 1: SLAVE<br/>Порт: 5438<br/>Режим: Read-Only]:::slave
-
-    Router -->|Пользователи: hash ID % 2 == 0| User2M[User Shard 2: MASTER<br/>Порт: 5439<br/>Режим: Read/Write]:::master
-    User2M -->|Асинхронная репликация| User2S[User Shard 2: SLAVE<br/>Порт: 5440<br/>Режим: Read-Only]:::slave
-
-    %% Связи для чтения
-    Router -.->|Тяжелые SELECT запросы| CatS
-    Router -.->|Тяжелые SELECT запросы| User1S
-    Router -.->|Тяжелые SELECT запросы| User2S
+               +----------------------------------------+
+               |      Бэкенд приложения / API Gateway   |
+               +----------------------------------------+
+                                   |
+                                   v
+               +----------------------------------------+
+               |  Маршрутизатор (Data Access Layer)     |
+               +----------------------------------------+
+                 /                 |                  \
+  (Книги / Магазины)     (Юзеры: ID % 2 != 0)     (Юзеры: ID % 2 == 0)
+        /                          |                          \
+       v                           v                           v
++------------------+       +------------------+       +------------------+
+| CATALOG: MASTER  |       |  USER_1: MASTER  |       |  USER_2: MASTER  |
+| Порт: 5435       |       |  Порт: 5437       |       |  Порт: 5439       |
+| Режим: Read/Write|       |  Режим: Read/Write|       |  Режим: Read/Write|
++------------------+       +------------------+       +------------------+
+       |                           |                           |
+  (Репликация)                (Репликация)                (Репликация)
+       v                           v                           v
++------------------+       +------------------+       +------------------+
+| CATALOG: SLAVE   |       |  USER_1: SLAVE   |       |  USER_2: SLAVE   |
+| Порт: 5436       |       |  Порт: 5438       |       |  Порт: 5440       |
+| Режим: Read-Only |       |  Режим: Read-Only |       |  Режим: Read-Only |
++------------------+       +------------------+       +------------------+
 
 Для обеспечения высокой доступности и отказоустойчивости каждый шард разворачивается в режиме Primary-Standby (Master-Slave) репликации:
+
 1. Основной слой (Primary / Master):
+
 * Сервера: User Shard 1 (Master), User Shard 2 (Master), Catalog Shard (Master).
 * Режим работы: Read/Write (Чтение и запись).
 * Назначение: Принимать любые транзакции (INSERT, UPDATE, DELETE) от микросервисов.
+
 2. Репликационный слой (Standby / Slave):
+
 * Сервера: User Replica 1, User Replica 2, Catalog Replica.
 * Режим работы: Read-Only (Только чтение, асинхронное получение WAL-логов).
 * Назначение: Выполнение тяжелых поисковых запросов (SELECT), чтобы не нагружать ими Master-сервер. При падении Master-сервера, реплика автоматически (через оркестратор вроде Patroni) переключается в режим Master.
@@ -125,6 +126,7 @@ DRBD (Distributed Replicated Block Device) работает на уровне я
 5. Сравнительная таблица методов
 
 | Критерий | Master + 1 Пассивный Slave | Master + Много Slaves | Активный сервер + DRBD | SAN-кластер |
+| :---: | :---: | :---: | :---: | :---: |
 | Основной упор  | Надежность (HA) | Скорость чтения | Целостность диска | Отсутствие задержек |
 | Уровень работы  | Логический (СУБД) | Логический (СУБД) | Блочный (Ядро ОС) | Аппаратный (Железо) |
 | Основной упор  | Минимальная | Зависит от нагрузки | Нулевая (при синхронном) | Полностью отсутствует |
@@ -144,6 +146,7 @@ docker compose ps
 * Используемые порты
 
 | Контейнер | Назначение | Порт | Разрешенные операции |
+| :---: | :---: | :---: | :---: |
 | pg-catalog-master | Книги и магазины | 5435 | Запись + Чтение |
 | pg-catalog-slave | Книги и магазины (Реплика) | 5436 | Только SELECT |
 | pg-user1-master | Пользователи (Нечетные ID) | 5437 | Запись + Чтение |
