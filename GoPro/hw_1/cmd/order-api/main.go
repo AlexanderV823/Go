@@ -26,11 +26,11 @@ func main() {
 
 	notifier := notification.NewEmailService()
 
-	// 2. Внедрение зависимостей в слой бизнес-логики (DIP)
+	// 2. Внедрение зависимостей в слой бизнес-логики
 	orderService := service.NewOrderService(sqliteRepo, notifier)
 
 	// 3. Запуск бизнес-процесса
-	err = orderService.CreateOrder("Иван", []string{"apple", "banana"}, 10.5)
+	err = orderService.CreateOrder("Иван", []string{"onion", "potato"}, 10.5)
 	if err != nil {
 		log.Fatal(err)
 	}
