@@ -2,8 +2,8 @@ package service
 
 import "hw_1/internal/domain"
 
-// OrderWriter определяет контракт для сохранения данных
-type OrderWriter interface {
+// RepositoryWriter определяет контракт для сохранения данных
+type RepositoryWriter interface {
 	Save(order *domain.Order) error
 }
 
@@ -12,7 +12,7 @@ type DBInitializer interface {
 	InitSchema() error
 }
 
-// MessageSender определяет контракт для отправки уведомлений
-type MessageSender interface {
+// Notifier определяет контракт для отправки уведомлений
+type Notifier interface {
 	Send(recipient string, message string) error
 }

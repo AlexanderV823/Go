@@ -6,13 +6,13 @@ import (
 	"hw_1/internal/domain"
 )
 
-// OrderService координирует бизнес-процесс создания заказа
+// OrderService - координирует бизнес-процесс создания заказа
 type OrderService struct {
-	repo     OrderWriter
-	notifier MessageSender
+	repo     RepositoryWriter
+	notifier Notifier
 }
 
-func NewOrderService(repo OrderWriter, notifier MessageSender) *OrderService {
+func NewOrderService(repo RepositoryWriter, notifier Notifier) *OrderService {
 	return &OrderService{
 		repo:     repo,
 		notifier: notifier,
