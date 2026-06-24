@@ -28,20 +28,18 @@ func main() {
 	emailNotifier := notification.NewEmailService()
 	smsNotifier := notification.NewSMSSender()
 
-
 	fmt.Println("--- Заказ с Email-уведомлением ---")
 	// 2. Внедрение зависимостей в слой бизнес-логики
 	orderServiceWithEmail := service.NewOrderService(sqliteRepo, emailNotifier)
-
+	// 3. Запуск бизнес-процесса
 	err = orderServiceWithEmail.CreateOrder("Иван", []string{"onion", "potato"}, 10.5)
 	if err != nil {
 		log.Fatal(err)
 	}
 
+	// Пример создания другого заказа
 	fmt.Println("\n--- Заказ с SMS-уведомлением ---")
-
 	orderServiceWithSMS := service.NewOrderService(sqliteRepo, smsNotifier)
-	// 3. Запуск бизнес-процесса
 	err = orderServiceWithSMS.CreateOrder("Василий", []string{"apple"}, 5.2)
 	if err != nil {
 		log.Fatal(err)
