@@ -3,6 +3,7 @@ package main
 import (
 	"database/sql"
 	"log"
+	"fmt"
 
 	_ "github.com/mattn/go-sqlite3"
 
@@ -24,13 +25,24 @@ func main() {
 		log.Fatal(err)
 	}
 
-	notifier := notification.NewEmailService()
+	emailNotifier := notification.NewEmailService()
+	smsNotifier := notification.NewSMSSender()
 
+
+	fmt.Println("--- Заказ с Email-уведомлением ---")
 	// 2. Внедрение зависимостей в слой бизнес-логики
-	orderService := service.NewOrderService(sqliteRepo, notifier)
+	orderServiceWithEmail := service.NewOrderService(sqliteRepo, emailNotifier)
 
+	err = orderServiceWithEmail.CreateOrder("Иван", []string{"onion", "potato"}, 10.5)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	fmt.Println("\n--- Заказ с SMS-уведомлением ---")
+
+	orderServiceWithSMS := service.NewOrderService(sqliteRepo, smsNotifier)
 	// 3. Запуск бизнес-процесса
-	err = orderService.CreateOrder("Иван", []string{"onion", "potato"}, 10.5)
+	err = orderServiceWithSMS.CreateOrder("Василий", []string{"apple"}, 5.2)
 	if err != nil {
 		log.Fatal(err)
 	}
