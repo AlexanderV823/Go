@@ -8,37 +8,44 @@ import (
 	"strings"
 )
 
-// Validate проверяет поля структуры на соответствие тегам validate
-func Validate(v interface{}) error {
-	val := reflect.ValueOf(v)
+type User struct {
+	Name  string `validate:"min=3"`
+	Age   int    `validate:"min=18;max=65"`
+	Email string `validate:"regexp=^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}$"`
+}
 
-	// Если передали указатель, получаем значение, на которое он указывает
+// Validate проверяет поля структуры на соответствие правилам из тегов
+func Validate(v interface{}) error {
+	// Получаем reflect.Type и reflect.Value от v
+	val := reflect.ValueOf(v)
+	typ := reflect.TypeOf(v)
+
+	// Если передан указатель на структуру, извлекаем саму структуру
 	if val.Kind() == reflect.Ptr {
 		val = val.Elem()
+		typ = typ.Elem()
 	}
 
-	// Функция работает только со структурами
 	if val.Kind() != reflect.Struct {
 		return fmt.Errorf("validate: expected a struct, got %s", val.Kind())
 	}
 
-	typ := val.Type()
-
-	// Обходим все поля структуры
+	// Проходим по всем полям через NumField()
 	for i := 0; i < val.NumField(); i++ {
 		fieldVal := val.Field(i)
 		fieldType := typ.Field(i)
-		tag := fieldType.Tag.Get("validate")
 
-		// Если тега нет, пропускаем поле
+		// Извлекаем тег через tag.Get("validate")
+		tag := fieldType.Tag.Get("validate")
 		if tag == "" {
 			continue
 		}
 
-		// Разбиваем правила, если их несколько (например, min=18;max=65)
+		// Разбираем правила через strings.Split с разделителем ";"
 		rules := strings.Split(tag, ";")
 		for _, rule := range rules {
-			parts := strings.SplitN(rule, "=", 2)
+			// Разбираем конкретное правило (например, min=3)
+			parts := strings.Split(rule, "=")
 			if len(parts) != 2 {
 				continue
 			}
@@ -46,97 +53,82 @@ func Validate(v interface{}) error {
 			key := parts[0]
 			param := parts[1]
 
-			// Обработка конкретных правил
+			// Проверяем значение в зависимости от правила
 			switch key {
 			case "min":
-				if err := checkMin(fieldType.Name, fieldVal, param); err != nil {
-					return err
+				limit, err := strconv.Atoi(param)
+				if err != nil {
+					return fmt.Errorf("invalid min param for field %s", fieldType.Name)
 				}
+
+				switch fieldVal.Kind() {
+				case reflect.String:
+					// Учитываем кириллицу и иероглифы через конвертацию в руны []rune
+					strRunes := []rune(fieldVal.String())
+					if len(strRunes) < limit {
+						return fmt.Errorf("field %s length is less than %d", fieldType.Name, limit)
+					}
+				case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
+					if fieldVal.Int() < int64(limit) {
+						return fmt.Errorf("field %s value is less than %d", fieldType.Name, limit)
+					}
+				}
+
 			case "max":
-				if err := checkMax(fieldType.Name, fieldVal, param); err != nil {
-					return err
+				limit, err := strconv.Atoi(param)
+				if err != nil {
+					return fmt.Errorf("invalid max param for field %s", fieldType.Name)
 				}
+
+				switch fieldVal.Kind() {
+				case reflect.String:
+					// Учитываем кириллицу и иероглифы через конвертацию в руны []rune
+					strRunes := []rune(fieldVal.String())
+					if len(strRunes) > limit {
+						return fmt.Errorf("field %s length is greater than %d", fieldType.Name, limit)
+					}
+				case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
+					if fieldVal.Int() > int64(limit) {
+						return fmt.Errorf("field %s value is greater than %d", fieldType.Name, limit)
+					}
+				}
+
 			case "regexp":
-				if err := checkRegexp(fieldType.Name, fieldVal, param); err != nil {
-					return err
+				if fieldVal.Kind() == reflect.String {
+					re, err := regexp.Compile(param)
+					if err != nil {
+						return fmt.Errorf("invalid regexp pattern for field %s", fieldType.Name)
+					}
+					if !re.MatchString(fieldVal.String()) {
+						return fmt.Errorf("field %s does not match expression %s", fieldType.Name, param)
+					}
 				}
 			}
 		}
 	}
 
+	// Выход: nil, если валидация пройдена успешно
 	return nil
-}
-
-func checkMin(fieldName string, val reflect.Value, param string) error {
-	limit, err := strconv.Atoi(param)
-	if err != nil {
-		return fmt.Errorf("invalid min param for field %s", fieldName)
-	}
-
-	switch val.Kind() {
-	case reflect.String:
-		if len(val.String()) < limit {
-			return fmt.Errorf("field %s length is less than %d", fieldName, limit)
-		}
-	case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
-		if val.Int() < int64(limit) {
-			return fmt.Errorf("field %s value is less than %d", fieldName, limit)
-		}
-	}
-	return nil
-}
-
-func checkMax(fieldName string, val reflect.Value, param string) error {
-	limit, err := strconv.Atoi(param)
-	if err != nil {
-		return fmt.Errorf("invalid max param for field %s", fieldName)
-	}
-
-	switch val.Kind() {
-	case reflect.String:
-		if len(val.String()) > limit {
-			return fmt.Errorf("field %s length is greater than %d", fieldName, limit)
-		}
-	case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
-		if val.Int() > int64(limit) {
-			return fmt.Errorf("field %s value is greater than %d", fieldName, limit)
-		}
-	}
-	return nil
-}
-
-func checkRegexp(fieldName string, val reflect.Value, param string) error {
-	if val.Kind() != reflect.String {
-		return nil // Пропускаем, если regexp применили не к строке
-	}
-
-	re, err := regexp.Compile(param)
-	if err != nil {
-		return fmt.Errorf("invalid regexp pattern for field %s", fieldName)
-	}
-
-	if !re.MatchString(val.String()) {
-		return fmt.Errorf("field %s does not match expression %s", fieldName, param)
-	}
-	return nil
-}
-
-type User struct {
-	Name  string `validate:"min=3"`
-	Age   int    `validate:"min=18;max=65"`
-	Email string `validate:"regexp=^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}$"`
 }
 
 func main() {
-	u := User{
-		Name:  "Alex",
-		Age:   30,
-		Email: "test@example.com",
+	// Тест 1: Имя "Ив" (2 руны) меньше min=3. Ожидаем ошибку.
+	if err := Validate(User{Name: "Ив", Age: 18, Email: "test@example.com"}); err != nil {
+		fmt.Println("Validation error:", err)
 	}
 
-	if err := Validate(u); err != nil {
-		fmt.Println("Ошибка валидации:", err)
-	} else {
-		fmt.Println("Структура валидна")
+	// Тест 2: Возраст 70 больше max=65. Ожидаем ошибку.
+	if err := Validate(User{Name: "Иван", Age: 70, Email: "test@example.com"}); err != nil {
+		fmt.Println("Validation error:", err)
+	}
+
+	// Тест 3: Email "invalid email" не проходит regexp. Ожидаем ошибку.
+	if err := Validate(User{Name: "Иван", Age: 35, Email: "invalid email"}); err != nil {
+		fmt.Println("Validation error:", err)
+	}
+
+	// Тест 4: Все данные валидны. Ошибки быть не должно (ничего не выведется).
+	if err := Validate(User{Name: "Иван", Age: 35, Email: "test@example.com"}); err != nil {
+		fmt.Println("Validation error:", err)
 	}
 }
