@@ -1,0 +1,162 @@
+openapi: 3.0.3
+info:
+  title: Tasks API
+  description: REST API для управления списком задач (to-do) в оперативной памяти.
+  version: 1.0.0
+paths:
+  /health:
+    get:
+      summary: Проверка работоспособности сервиса
+      responses:
+        '200':
+          description: Сервер успешно работает
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: OK
+  /tasks:
+    get:
+      summary: Получить список всех задач
+      responses:
+        '200':
+          description: Успешное получение списка задач
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Task'
+        '405':
+          $ref: '#/components/responses/405MethodNotAllowed'
+    post:
+      summary: Создать новую задачу
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - title
+              properties:
+                title:
+                  type: string
+                  example: Зайти в Озон
+                done:
+                  type: boolean
+                  default: false
+      responses:
+        '201':
+          description: Задача успешно создана
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Task'
+        '400':
+          $ref: '#/components/responses/400BadRequest'
+        '405':
+          $ref: '#/components/responses/405MethodNotAllowed'
+  /tasks/{id}:
+    parameters:
+      - name: id
+        in: path
+        required: true
+        description: Идентификатор задачи
+        schema:
+          type: integer
+    get:
+      summary: Получить задачу по ID
+      responses:
+        '200':
+          description: Задача найдена
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Task'
+        '400':
+          $ref: '#/components/responses/400BadRequest'
+        '404':
+          $ref: '#/components/responses/404NotFound'
+    put:
+      summary: Обновить задачу целиком
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - title
+                - done
+              properties:
+                title:
+                  type: string
+                  example: Забрать посылку из Озон
+                done:
+                  type: boolean
+                  example: true
+      responses:
+        '200':
+          description: Задача успешно обновлена
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Task'
+        '400':
+          $ref: '#/components/responses/400BadRequest'
+        '404':
+          $ref: '#/components/responses/404NotFound'
+    delete:
+      summary: Удалить задачу по ID
+      responses:
+        '204':
+          description: Задача успешно удалена (тело ответа пустое)
+        '404':
+          $ref: '#/components/responses/404NotFound'
+components:
+  schemas:
+    Task:
+      type: object
+      properties:
+        id:
+          type: integer
+          example: 1
+        title:
+          type: string
+          example: Купить молоко
+        done:
+          type: boolean
+          example: false
+        created_at:
+          type: string
+          format: date-time
+          example: "2026-08-05T21:10:15+03:00"
+    Error:
+      type: object
+      properties:
+        error:
+          type: string
+          example: Описание ошибки
+  responses:
+    400BadRequest:
+      description: Неверные входные данные или формат JSON
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    404NotFound:
+      description: Ресурс не найден
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    405MethodNotAllowed:
+      description: Метод не поддерживается для данного эндпоинта
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'

@@ -44,6 +44,8 @@ tasks-api/
 
 Все ответы (включая ошибки) возвращаются с заголовком Content-Type: application/json.Единый формат ошибок: {"error": "сообщение"}.
 
+OpenAPI 3.0 Спецификация: [openapi.yaml](./openapi.yaml)
+
 5. Тестирование
 
 Тестовые примеры можно запустить в Postman: [collection.json](./collection.json)
