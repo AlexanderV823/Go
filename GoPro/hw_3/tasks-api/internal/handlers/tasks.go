@@ -17,14 +17,14 @@ func New(s storage.Storage) *Handler { return &Handler{Store: s} }
 
 // Вспомогательный метод для отправки JSON ошибок
 func (h *Handler) sendError(w http.ResponseWriter, status int, msg string) {
-	w.Header().Set("Content-Type", application/json)
+	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(status)
 	_ = json.NewEncoder(w).Encode(map[string]string{"error": msg})
 }
 
 // Вспомогательный метод для отправки успешных JSON ответов
 func (h *Handler) sendJSON(w http.ResponseWriter, status int, data interface{}) {
-	w.Header().Set("Content-Type", application/json)
+	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(status)
 	_ = json.NewEncoder(w).Encode(data)
 }
