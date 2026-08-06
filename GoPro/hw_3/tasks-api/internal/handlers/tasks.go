@@ -15,24 +15,26 @@ type Handler struct{ Store storage.Storage }
 
 func New(s storage.Storage) *Handler { return &Handler{Store: s} }
 
+// Вспомогательный метод для отправки JSON ошибок
 func (h *Handler) sendError(w http.ResponseWriter, status int, msg string) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(status)
 	_ = json.NewEncoder(w).Encode(map[string]string{"error": msg})
 }
 
+// Вспомогательный метод для отправки успешных JSON ответов
 func (h *Handler) sendJSON(w http.ResponseWriter, status int, data interface{}) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(status)
 	_ = json.NewEncoder(w).Encode(data)
 }
 
-// PRO: Health-check с ограничением по методу и заголовком Allow
+// PRO: Health-check
 func (h *Handler) Health(w http.ResponseWriter, r *http.Request) {
 	log.Printf("[%s] %s", r.Method, r.URL.Path)
 
 	if r.Method != http.MethodGet {
-		w.Header().Set("Allow", "GET") // Указываем разрешенный метод
+		w.Header().Set("Allow", "GET")
 		h.sendError(w, http.StatusMethodNotAllowed, "Метод не поддерживается")
 		return
 	}
@@ -46,10 +48,14 @@ func (h *Handler) TasksCollection(w http.ResponseWriter, r *http.Request) {
 
 	switch r.Method {
 	case http.MethodGet:
+		// Получаем детерминированный, отсортированный и изолированный срез
 		tasks := h.Store.List()
 		h.sendJSON(w, http.StatusOK, tasks)
 
 	case http.MethodPost:
+		// Явно освобождаем ресурсы чтения тела запроса по завершении хендлера
+		defer r.Body.Close()
+
 		var req models.Task
 		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 			h.sendError(w, http.StatusBadRequest, "Неверный формат JSON")
@@ -61,11 +67,12 @@ func (h *Handler) TasksCollection(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
+		// Передаем локальную копию в потокобезопасный сторидж
 		created, _ := h.Store.Create(req)
 		h.sendJSON(w, http.StatusCreated, created)
 
 	default:
-		w.Header().Set("Allow", "GET, POST") // Указываем разрешенные методы
+		w.Header().Set("Allow", "GET, POST")
 		h.sendError(w, http.StatusMethodNotAllowed, "Метод не поддерживается")
 	}
 }
@@ -83,6 +90,7 @@ func (h *Handler) TaskItem(w http.ResponseWriter, r *http.Request) {
 
 	switch r.Method {
 	case http.MethodGet:
+		// Метод Get возвращает глубокую копию структуры
 		task, exists := h.Store.Get(id)
 		if !exists {
 			h.sendError(w, http.StatusNotFound, "Задача не найдена")
@@ -91,6 +99,8 @@ func (h *Handler) TaskItem(w http.ResponseWriter, r *http.Request) {
 		h.sendJSON(w, http.StatusOK, task)
 
 	case http.MethodPut:
+		defer r.Body.Close()
+
 		var req models.Task
 		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 			h.sendError(w, http.StatusBadRequest, "Неверный формат JSON")
@@ -102,6 +112,7 @@ func (h *Handler) TaskItem(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
+		// Сторидж обновляет данные под Lock мьютекса и возвращает новую копию
 		updated, err := h.Store.Update(id, req)
 		if err != nil {
 			h.sendError(w, http.StatusNotFound, "Задача не найдена")
@@ -118,7 +129,7 @@ func (h *Handler) TaskItem(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusNoContent)
 
 	default:
-		w.Header().Set("Allow", "GET, PUT, DELETE") // Указываем разрешенные методы
+		w.Header().Set("Allow", "GET, PUT, DELETE")
 		h.sendError(w, http.StatusMethodNotAllowed, "Метод не поддерживается")
 	}
 }
