@@ -69,12 +69,13 @@ func (h *Handler) TasksCollection(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
-		if strings.TrimSpace(req.Title) == "" {
+		req.Title = strings.TrimSpace(req.Title)
+
+		if req.Title == "" {
 			h.sendError(w, http.StatusBadRequest, "Поле 'title' обязательно")
 			return
 		}
 
-		// Передаем локально созданную структуру в изолированный сторидж
 		created, err := h.Store.Create(req)
 		if err != nil {
 			log.Printf("Непредвиденная ошибка при создании задачи: %v", err)
@@ -121,7 +122,9 @@ func (h *Handler) TaskItem(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
-		if strings.TrimSpace(req.Title) == "" {
+		req.Title = strings.TrimSpace(req.Title)
+
+		if req.Title == "" {
 			h.sendError(w, http.StatusBadRequest, "Поле 'title' обязательно")
 			return
 		}

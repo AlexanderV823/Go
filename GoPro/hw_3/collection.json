@@ -1,6 +1,6 @@
 {
     "info": {
-        "name": "Tasks API - Автотесты",
+        "name": "Tasks API - Финальные автотесты",
         "schema": "https://getpostman.com"
     },
     "item": [
@@ -11,16 +11,9 @@
                     "listen": "test",
                     "script": {
                         "exec": [
-                            "pm.test(\"Статус-код должен быть 405\", function () {",
-                            "    pm.response.to.have.status(405);",
-                            "});",
-                            "pm.test(\"Наличие заголовка Allow: GET\", function () {",
-                            "    pm.response.to.have.header(\"Allow\", \"GET\");",
-                            "});",
-                            "pm.test(\"Формат ошибки в JSON\", function () {",
-                            "    var jsonData = pm.response.json();",
-                            "    pm.expect(jsonData).to.have.property(\"error\");",
-                            "});"
+                            "pm.test('Статус-код должен быть 405', function () { pm.response.to.have.status(405); });",
+                            "pm.test('Наличие заголовка Allow: GET', function () { pm.response.to.have.header('Allow', 'GET'); });",
+                            "pm.test('Формат ошибки в JSON', function () { var jsonData = pm.response.json(); pm.expect(jsonData).to.have.property('error'); });"
                         ],
                         "type": "text/javascript"
                     }
@@ -42,23 +35,14 @@
             "response": []
         },
         {
-            "name": "1. Создание задачи (Успех)",
+            "name": "1. Создание задачи (Успех и Нормализация пробелов)",
             "event": [
                 {
                     "listen": "test",
                     "script": {
                         "exec": [
-                            "pm.test(\"Статус-код 210 или 201 Created\", function () {",
-                            "    pm.response.to.have.status(201);",
-                            "});",
-                            "pm.test(\"Проверка полей созданной задачи\", function () {",
-                            "    var jsonData = pm.response.json();",
-                            "    pm.expect(jsonData).to.have.property(\"id\");",
-                            "    pm.expect(jsonData.title).to.eql(\"Зайти в Озон\");",
-                            "    pm.expect(jsonData.done).to.eql(false);",
-                            "    // Сохраняем ID динамически для следующих запросов",
-                            "    pm.collectionVariables.set(\"currentTaskId\", jsonData.id);",
-                            "});"
+                            "pm.test('Статус-код 201 Created', function () { pm.response.to.have.status(201); });",
+                            "pm.test('Проверка автоматической очистки пробелов в title', function () { var jsonData = pm.response.json(); pm.expect(jsonData).to.have.property('id'); pm.expect(jsonData.title).to.eql('Забрать заказ из Озона'); pm.expect(jsonData.done).to.eql(false); pm.collectionVariables.set('currentTaskId', jsonData.id); });"
                         ],
                         "type": "text/javascript"
                     }
@@ -75,7 +59,7 @@
                 ],
                 "body": {
                     "mode": "raw",
-                    "raw": "{\n    \"title\": \"Зайти в Озон\"\n}"
+                    "raw": "{\n    \"title\": \"   Забрать заказ из Озона   \"\n}"
                 },
                 "url": {
                     "raw": "{{baseUrl}}/tasks",
@@ -90,20 +74,14 @@
             "response": []
         },
         {
-            "name": "2. Получение списка и проверка типа",
+            "name": "2. Получение списка (Проверка стабильного порядка по ID)",
             "event": [
                 {
                     "listen": "test",
                     "script": {
                         "exec": [
-                            "pm.test(\"Статус-код 200 OK\", function () {",
-                            "    pm.response.to.have.status(200);",
-                            "});",
-                            "pm.test(\"Ответ должен быть массивом JSON\", function () {",
-                            "    var jsonData = pm.response.json();",
-                            "    pm.expect(jsonData).to.be.an(\"array\");",
-                            "    pm.expect(jsonData.length).to.be.above(0);",
-                            "});"
+                            "pm.test('Статус-код 200 OK', function () { pm.response.to.have.status(200); });",
+                            "pm.test('Ответ является массивом JSON', function () { var jsonData = pm.response.json(); pm.expect(jsonData).to.be.an('array'); pm.expect(jsonData.length).to.be.above(0); });"
                         ],
                         "type": "text/javascript"
                     }
@@ -131,13 +109,8 @@
                     "listen": "test",
                     "script": {
                         "exec": [
-                            "pm.test(\"Статус-код 200 OK\", function () {",
-                            "    pm.response.to.have.status(200);",
-                            "});",
-                            "pm.test(\"ID в теле совпадает с запрашиваемым\", function () {",
-                            "    var jsonData = pm.response.json();",
-                            "    pm.expect(jsonData.id).to.eql(pm.collectionVariables.get(\"currentTaskId\"));",
-                            "});"
+                            "pm.test('Статус-код 200 OK', function () { pm.response.to.have.status(200); });",
+                            "pm.test('ID в ответе соответствует сохраненному значению', function () { var jsonData = pm.response.json(); pm.expect(jsonData.id).to.eql(Number(pm.collectionVariables.get('currentTaskId'))); pm.expect(jsonData.title).to.eql('Забрать заказ из Ожного'); });"
                         ],
                         "type": "text/javascript"
                     }
@@ -160,18 +133,14 @@
             "response": []
         },
         {
-            "name": "4. Ошибка 405 на уровне элемента",
+            "name": "4. Проверка Ошибки 405 для элемента",
             "event": [
                 {
                     "listen": "test",
                     "script": {
                         "exec": [
-                            "pm.test(\"Статус-код 405 Method Not Allowed\", function () {",
-                            "    pm.response.to.have.status(405);",
-                            "});",
-                            "pm.test(\"Проверка заголовка Allow для элемента\", function () {",
-                            "    pm.response.to.have.header(\"Allow\", \"GET, PUT, DELETE\");",
-                            "});"
+                            "pm.test('Статус-код 405 Method Not Allowed', function () { pm.response.to.have.status(405); });",
+                            "pm.test('Проверка заголовка Allow для элемента', function () { pm.response.to.have.header('Allow', 'GET, PUT, DELETE'); });"
                         ],
                         "type": "text/javascript"
                     }
@@ -200,14 +169,8 @@
                     "listen": "test",
                     "script": {
                         "exec": [
-                            "pm.test(\"Статус-код 200 OK\", function () {",
-                            "    pm.response.to.have.status(200);",
-                            "});",
-                            "pm.test(\"Поля успешно изменились\", function () {",
-                            "    var jsonData = pm.response.json();",
-                            "    pm.expect(jsonData.title).to.eql(\"Забрать посылку из Озон\");",
-                            "    pm.expect(jsonData.done).to.eql(true);",
-                            "});"
+                            "pm.test('Статус-код 200 OK', function () { pm.response.to.have.status(200); });",
+                            "pm.test('Поля успешно обновлены и нормализованы', function () { var jsonData = pm.response.json(); pm.expect(jsonData.title).to.eql('Забрать посылку из Озона'); pm.expect(jsonData.done).to.eql(true); });"
                         ],
                         "type": "text/javascript"
                     }
@@ -224,7 +187,7 @@
                 ],
                 "body": {
                     "mode": "raw",
-                    "raw": "{\n    \"title\": \"Забрать посылку из Озон\",\n    \"done\": true\n}"
+                    "raw": "{\n    \"title\": \"   Забрать посылку из Озона   \",\n    \"done\": true\n}"
                 },
                 "url": {
                     "raw": "{{baseUrl}}/tasks/{{currentTaskId}}",
@@ -240,15 +203,14 @@
             "response": []
         },
         {
-            "name": "6. Удаление задачи",
+            "name": "6. Удаление задачи (Проверка 204 No Content)",
             "event": [
                 {
                     "listen": "test",
                     "script": {
                         "exec": [
-                            "pm.test(\"Статус-код 204 No Content\", function () {",
-                            "    pm.response.to.have.status(204);",
-                            "});"
+                            "pm.test('Статус-код 204 No Content', function () { pm.response.to.have.status(204); });",
+                            "pm.test('Тело ответа должно отсутствовать', function () { pm.expect(pm.response.text()).to.be.empty; });"
                         ],
                         "type": "text/javascript"
                     }
@@ -271,23 +233,21 @@
             "response": []
         },
         {
-            "name": "7. Проверка удаления (Должно быть 404)",
+            "name": "7. Повторное удаление (Проверка Доменной Ошибки 404)",
             "event": [
                 {
                     "listen": "test",
                     "script": {
-                        "event": "test",
                         "exec": [
-                            "pm.test(\"Статус-код 404 Not Found\", function () {",
-                            "    pm.response.to.have.status(404);",
-                            "});"
+                            "pm.test('Статус-код 404 Not Found', function () { pm.response.to.have.status(404); });",
+                            "pm.test('Формат ошибки содержит поле error', function () { var jsonData = pm.response.json(); pm.expect(jsonData).to.have.property('error', 'Задача не найдена'); });"
                         ],
                         "type": "text/javascript"
                     }
                 }
             ],
             "request": {
-                "method": "GET",
+                "method": "DELETE",
                 "header": [],
                 "url": {
                     "raw": "{{baseUrl}}/tasks/{{currentTaskId}}",

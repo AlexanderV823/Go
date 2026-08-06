@@ -85,6 +85,19 @@ Content-Length: 82
 {"id":1,"title":"Зайти в Озон","done":false,"created_at":"2026-08-05T21:10:15+03:00"}
 ```
 
+* **Передача значения title с пробелами**
+
+**Успешный сценарий:**
+curl -i -X POST http://localhost:8080/tasks -H "Content-Type: application/json" -d "{\"title\": \"   Помыть машину   \"}"
+
+**Ответ:**
+```
+HTTP/1.1 201 Created
+Content-Type: application/json
+
+{"id":2,"title":"Помыть машину","done":false,"created_at":"2026-08-06T20:15:30+03:00"}
+```
+
 **Ошибочный сценарий (пустой title):**
 curl -i -X POST http://localhost:8080/tasks -H "Content-Type: application/json" -d "{\"title\": \"   \"}"
 

@@ -1,8 +1,14 @@
 openapi: 3.0.3
 info:
   title: Tasks API
-  description: REST API для управления списком задач (to-do) в оперативной памяти с корректной обработкой заголовков Allow.
-  version: 1.1.0
+  description: |
+    REST API для управления списком задач (to-do) в оперативной памяти.
+
+    **Особенности реализации:**
+    * Все операции потокобезопасны и детерминированы (список всегда отсортирован по ID).
+    * Поле `title` проходит сквозную нормализацию (trimming). В систему сохраняется и возвращается значение без пробелов по краям.
+    * Неподдерживаемые методы строго возвращают код `405` и заголовок `Allow`.
+  version: 1.2.0
 paths:
   /health:
     get:
@@ -30,7 +36,7 @@ paths:
 
   /tasks:
     get:
-      summary: Получить список всех задач
+      summary: Получить список всех задач (отсортирован по ID)
       responses:
         '200':
           description: Успешное получение списка задач
@@ -44,6 +50,7 @@ paths:
           $ref: '#/components/responses/405MethodNotAllowedCollection'
     post:
       summary: Создать новую задачу
+      description: Пробелы по краям поля `title` автоматически удаляются перед валидацией и сохранением.
       requestBody:
         required: true
         content:
@@ -55,13 +62,13 @@ paths:
               properties:
                 title:
                   type: string
-                  example: Зайти в Озон
+                  example: Забрать заказ из Озона
                 done:
                   type: boolean
                   default: false
       responses:
         '201':
-          description: Задача успешно создана
+          description: Задача успешно создана (возвращается нормализованное значение)
           content:
             application/json:
               schema:
@@ -70,6 +77,8 @@ paths:
           $ref: '#/components/responses/400BadRequest'
         '405':
           $ref: '#/components/responses/405MethodNotAllowedCollection'
+        '500':
+          $ref: '#/components/responses/500InternalServerError'
     put: &collection405
       summary: Неподдерживаемый метод для коллекции /tasks
       deprecated: true
@@ -84,7 +93,7 @@ paths:
       - name: id
         in: path
         required: true
-        description: Идентификатор задачи
+        description: Идентификатор задачи (целое положительное число)
         schema:
           type: integer
     get:
@@ -104,6 +113,7 @@ paths:
           $ref: '#/components/responses/405MethodNotAllowedItem'
     put:
       summary: Обновить задачу целиком
+      description: Пробелы по краям поля `title` автоматически удаляются перед сохранением.
       requestBody:
         required: true
         content:
@@ -116,7 +126,7 @@ paths:
               properties:
                 title:
                   type: string
-                  example: Забрать посылку из Озон
+                  example: Забрать посылку из Озона
                 done:
                   type: boolean
                   example: true
@@ -133,6 +143,8 @@ paths:
           $ref: '#/components/responses/404NotFound'
         '405':
           $ref: '#/components/responses/405MethodNotAllowedItem'
+        '500':
+          $ref: '#/components/responses/500InternalServerError'
     delete:
       summary: Удалить задачу по ID
       responses:
@@ -142,6 +154,8 @@ paths:
           $ref: '#/components/responses/404NotFound'
         '405':
           $ref: '#/components/responses/405MethodNotAllowedItem'
+        '500':
+          $ref: '#/components/responses/500InternalServerError'
     post: &item405
       summary: Неподдерживаемый метод для элемента /tasks/{id}
       deprecated: true
@@ -167,22 +181,28 @@ components:
         created_at:
           type: string
           format: date-time
-          example: "2026-08-05T21:10:15+03:00"
+          example: "2026-08-06T20:20:15+03:00"
     Error:
       type: object
       properties:
         error:
           type: string
-          example: Метод не поддерживается
+          example: Описание ошибки
   responses:
     400BadRequest:
-      description: Неверные входные данные или формат JSON
+      description: Неверные входные данные, пустой title или невалидный формат JSON
       content:
         application/json:
           schema:
             $ref: '#/components/schemas/Error'
     404NotFound:
-      description: Ресурс не найден
+      description: Ресурс (задача) не найден в хранилище (доменная ошибка)
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    500InternalServerError:
+      description: Внутренний непредвиденный сбой сервера или хранилища
       content:
         application/json:
           schema:
