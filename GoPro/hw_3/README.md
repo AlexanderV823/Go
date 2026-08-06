@@ -19,7 +19,10 @@ tasks-api/
   │       ├── storage.go       # Интерфейс Storage
   │       └── memory/
   │           └── memory.go    # Потокобезопасная in-memory реализация
-  └── go.mod                   # Модуль Go
+  │── go.mod                   # Модуль Go
+  │── collection.json          # Автоматизированный сценарий тестирования для Postman
+  │── openapi.yaml             # Спецификация OpenAPI
+  └── README.md                # Описание проекта
 ```
 
 **3. Как запустить проект**
