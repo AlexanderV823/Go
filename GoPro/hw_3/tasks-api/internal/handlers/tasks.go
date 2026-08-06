@@ -2,6 +2,7 @@ package handlers
 
 import (
 	"encoding/json"
+	"errors"
 	"log"
 	"net/http"
 	"strconv"
@@ -11,25 +12,31 @@ import (
 	"tasks-api/internal/storage"
 )
 
-type Handler struct{ Store storage.Storage }
+// Handler инкапсулирует слой бизнес-логики и работу с хранилищем
+type Handler struct {
+	Store storage.Storage
+}
 
-func New(s storage.Storage) *Handler { return &Handler{Store: s} }
+// New создает новый экземпляр обработчика задач
+func New(s storage.Storage) *Handler {
+	return &Handler{Store: s}
+}
 
-// Вспомогательный метод для отправки JSON ошибок
+// Вспомогательный метод для отправки JSON-ошибок клиенту
 func (h *Handler) sendError(w http.ResponseWriter, status int, msg string) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(status)
 	_ = json.NewEncoder(w).Encode(map[string]string{"error": msg})
 }
 
-// Вспомогательный метод для отправки успешных JSON ответов
+// Вспомогательный метод для отправки успешных ответов в формате JSON
 func (h *Handler) sendJSON(w http.ResponseWriter, status int, data interface{}) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(status)
 	_ = json.NewEncoder(w).Encode(data)
 }
 
-// PRO: Health-check
+// Health — Эндпоинт GET /health для проверки работоспособности сервиса
 func (h *Handler) Health(w http.ResponseWriter, r *http.Request) {
 	log.Printf("[%s] %s", r.Method, r.URL.Path)
 
@@ -42,18 +49,18 @@ func (h *Handler) Health(w http.ResponseWriter, r *http.Request) {
 	h.sendJSON(w, http.StatusOK, map[string]string{"status": "OK"})
 }
 
-// /tasks (GET, POST)
+// TasksCollection обрабатывает запросы к корню коллекции: /tasks (GET, POST)
 func (h *Handler) TasksCollection(w http.ResponseWriter, r *http.Request) {
 	log.Printf("[%s] %s", r.Method, r.URL.Path)
 
 	switch r.Method {
 	case http.MethodGet:
-		// Получаем детерминированный, отсортированный и изолированный срез
+		// Возвращает детерминированный, отсортированный по ID срез-копию задач
 		tasks := h.Store.List()
 		h.sendJSON(w, http.StatusOK, tasks)
 
 	case http.MethodPost:
-		// Явно освобождаем ресурсы чтения тела запроса по завершении хендлера
+		// Закрываем тело запроса сразу после выхода из этой ветки для экономии ресурсов
 		defer r.Body.Close()
 
 		var req models.Task
@@ -67,20 +74,28 @@ func (h *Handler) TasksCollection(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
-		// Передаем локальную копию в потокобезопасный сторидж
-		created, _ := h.Store.Create(req)
+		// Передаем локально созданную структуру в изолированный сторидж
+		created, err := h.Store.Create(req)
+		if err != nil {
+			log.Printf("Непредвиденная ошибка при создании задачи: %v", err)
+			h.sendError(w, http.StatusInternalServerError, "Внутренняя ошибка сервера")
+			return
+		}
+
 		h.sendJSON(w, http.StatusCreated, created)
 
 	default:
+		// REST-стандарт: заголовок Allow обязателен для статуса 405
 		w.Header().Set("Allow", "GET, POST")
 		h.sendError(w, http.StatusMethodNotAllowed, "Метод не поддерживается")
 	}
 }
 
-// /tasks/{id} (GET, PUT, DELETE)
+// TaskItem обрабатывает операции с конкретной задачей по ID: /tasks/{id} (GET, PUT, DELETE)
 func (h *Handler) TaskItem(w http.ResponseWriter, r *http.Request) {
 	log.Printf("[%s] %s", r.Method, r.URL.Path)
 
+	// Извлекаем и валидируем числовой ID из пути URL
 	idStr := strings.TrimPrefix(r.URL.Path, "/tasks/")
 	id, err := strconv.Atoi(idStr)
 	if err != nil || id <= 0 {
@@ -90,7 +105,6 @@ func (h *Handler) TaskItem(w http.ResponseWriter, r *http.Request) {
 
 	switch r.Method {
 	case http.MethodGet:
-		// Метод Get возвращает глубокую копию структуры
 		task, exists := h.Store.Get(id)
 		if !exists {
 			h.sendError(w, http.StatusNotFound, "Задача не найдена")
@@ -112,10 +126,15 @@ func (h *Handler) TaskItem(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
-		// Сторидж обновляет данные под Lock мьютекса и возвращает новую копию
 		updated, err := h.Store.Update(id, req)
 		if err != nil {
-			h.sendError(w, http.StatusNotFound, "Задача не найдена")
+			// Дифференцируем ожидаемую доменную ошибку и непредвиденный сбой сервера
+			if errors.Is(err, storage.ErrTaskNotFound) {
+				h.sendError(w, http.StatusNotFound, "Задача не найдена")
+			} else {
+				log.Printf("Критическая ошибка при обновлении задачи %d: %v", id, err)
+				h.sendError(w, http.StatusInternalServerError, "Внутренняя ошибка сервера")
+			}
 			return
 		}
 		h.sendJSON(w, http.StatusOK, updated)
@@ -123,12 +142,20 @@ func (h *Handler) TaskItem(w http.ResponseWriter, r *http.Request) {
 	case http.MethodDelete:
 		err := h.Store.Delete(id)
 		if err != nil {
-			h.sendError(w, http.StatusNotFound, "Задача не найдена")
+			// Дифференцируем ошибки для DELETE ресурса
+			if errors.Is(err, storage.ErrTaskNotFound) {
+				h.sendError(w, http.StatusNotFound, "Задача не найдена")
+			} else {
+				log.Printf("Критическая ошибка при удалении задачи %d: %v", id, err)
+				h.sendError(w, http.StatusInternalServerError, "Внутренняя ошибка сервера")
+			}
 			return
 		}
+		// Статус 204 No Content возвращается без какого-либо тела JSON
 		w.WriteHeader(http.StatusNoContent)
 
 	default:
+		// Список разрешенных методов для эндпоинта элемента коллекции
 		w.Header().Set("Allow", "GET, PUT, DELETE")
 		h.sendError(w, http.StatusMethodNotAllowed, "Метод не поддерживается")
 	}

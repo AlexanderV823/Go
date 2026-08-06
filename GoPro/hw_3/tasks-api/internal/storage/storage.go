@@ -1,6 +1,12 @@
 package storage
 
-import "tasks-api/internal/models"
+import (
+	"errors"
+	"tasks-api/internal/models"
+)
+
+// ErrTaskNotFound — доменная ошибка для сценария, когда задача не существует
+var ErrTaskNotFound = errors.New("task not found")
 
 type Storage interface {
 	List() []models.Task

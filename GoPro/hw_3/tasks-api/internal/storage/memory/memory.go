@@ -1,12 +1,12 @@
 package memory
 
 import (
-	"errors"
 	"sort"
 	"sync"
 	"time"
 
 	"tasks-api/internal/models"
+	"tasks-api/internal/storage"
 )
 
 type MemoryStorage struct {
@@ -93,15 +93,13 @@ func (s *MemoryStorage) Update(id int, t models.Task) (models.Task, error) {
 
 	task, exists := s.tasks[id]
 	if !exists {
-		return models.Task{}, errors.New("task not found")
+		return models.Task{}, storage.ErrTaskNotFound
 	}
 
-	// Модифицируем внутреннее состояние в рамках блокировки
 	task.Title = t.Title
 	task.Done = t.Done
 	s.tasks[id] = task
 
-	// Возвращаем изолированную копию
 	return models.Task{
 		ID:        task.ID,
 		Title:     task.Title,
@@ -115,7 +113,7 @@ func (s *MemoryStorage) Delete(id int) error {
 	defer s.mu.Unlock()
 
 	if _, exists := s.tasks[id]; !exists {
-		return errors.New("task not found")
+		return storage.ErrTaskNotFound
 	}
 
 	delete(s.tasks, id)
