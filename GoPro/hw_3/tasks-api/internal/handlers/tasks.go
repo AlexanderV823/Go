@@ -24,21 +24,18 @@ func New(s storage.Storage) *Handler {
 
 // Вспомогательный метод для отправки JSON-ошибок клиенту
 func (h *Handler) sendError(w http.ResponseWriter, status int, msg string) {
-	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(status)
 	_ = json.NewEncoder(w).Encode(map[string]string{"error": msg})
 }
 
 // Вспомогательный метод для отправки успешных ответов в формате JSON
 func (h *Handler) sendJSON(w http.ResponseWriter, status int, data interface{}) {
-	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(status)
 	_ = json.NewEncoder(w).Encode(data)
 }
 
 // Health — Эндпоинт GET /health для проверки работоспособности сервиса
 func (h *Handler) Health(w http.ResponseWriter, r *http.Request) {
-	log.Printf("[%s] %s", r.Method, r.URL.Path)
 
 	if r.Method != http.MethodGet {
 		w.Header().Set("Allow", "GET")
@@ -51,7 +48,6 @@ func (h *Handler) Health(w http.ResponseWriter, r *http.Request) {
 
 // TasksCollection обрабатывает запросы к корню коллекции: /tasks (GET, POST)
 func (h *Handler) TasksCollection(w http.ResponseWriter, r *http.Request) {
-	log.Printf("[%s] %s", r.Method, r.URL.Path)
 
 	switch r.Method {
 	case http.MethodGet:
@@ -94,7 +90,6 @@ func (h *Handler) TasksCollection(w http.ResponseWriter, r *http.Request) {
 
 // TaskItem обрабатывает операции с конкретной задачей по ID: /tasks/{id} (GET, PUT, DELETE)
 func (h *Handler) TaskItem(w http.ResponseWriter, r *http.Request) {
-	log.Printf("[%s] %s", r.Method, r.URL.Path)
 
 	// Извлекаем и валидируем числовой ID из пути URL
 	idStr := strings.TrimPrefix(r.URL.Path, "/tasks/")
