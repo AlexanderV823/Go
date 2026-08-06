@@ -1,8 +1,8 @@
 openapi: 3.0.3
 info:
   title: Tasks API
-  description: REST API для управления списком задач (to-do) в оперативной памяти.
-  version: 1.0.0
+  description: REST API для управления списком задач (to-do) в оперативной памяти с корректной обработкой заголовков Allow.
+  version: 1.1.0
 paths:
   /health:
     get:
@@ -18,6 +18,16 @@ paths:
                   status:
                     type: string
                     example: OK
+    post: &health405
+      summary: Неподдерживаемый метод для /health
+      deprecated: true
+      responses:
+        '405':
+          $ref: '#/components/responses/405MethodNotAllowedHealth'
+    put: *health405
+    delete: *health405
+    patch: *health405
+
   /tasks:
     get:
       summary: Получить список всех задач
@@ -31,7 +41,7 @@ paths:
                 items:
                   $ref: '#/components/schemas/Task'
         '405':
-          $ref: '#/components/responses/405MethodNotAllowed'
+          $ref: '#/components/responses/405MethodNotAllowedCollection'
     post:
       summary: Создать новую задачу
       requestBody:
@@ -59,7 +69,16 @@ paths:
         '400':
           $ref: '#/components/responses/400BadRequest'
         '405':
-          $ref: '#/components/responses/405MethodNotAllowed'
+          $ref: '#/components/responses/405MethodNotAllowedCollection'
+    put: &collection405
+      summary: Неподдерживаемый метод для коллекции /tasks
+      deprecated: true
+      responses:
+        '405':
+          $ref: '#/components/responses/405MethodNotAllowedCollection'
+    delete: *collection405
+    patch: *collection405
+
   /tasks/{id}:
     parameters:
       - name: id
@@ -81,6 +100,8 @@ paths:
           $ref: '#/components/responses/400BadRequest'
         '404':
           $ref: '#/components/responses/404NotFound'
+        '405':
+          $ref: '#/components/responses/405MethodNotAllowedItem'
     put:
       summary: Обновить задачу целиком
       requestBody:
@@ -110,6 +131,8 @@ paths:
           $ref: '#/components/responses/400BadRequest'
         '404':
           $ref: '#/components/responses/404NotFound'
+        '405':
+          $ref: '#/components/responses/405MethodNotAllowedItem'
     delete:
       summary: Удалить задачу по ID
       responses:
@@ -117,6 +140,16 @@ paths:
           description: Задача успешно удалена (тело ответа пустое)
         '404':
           $ref: '#/components/responses/404NotFound'
+        '405':
+          $ref: '#/components/responses/405MethodNotAllowedItem'
+    post: &item405
+      summary: Неподдерживаемый метод для элемента /tasks/{id}
+      deprecated: true
+      responses:
+        '405':
+          $ref: '#/components/responses/405MethodNotAllowedItem'
+    patch: *item405
+
 components:
   schemas:
     Task:
@@ -140,7 +173,7 @@ components:
       properties:
         error:
           type: string
-          example: Описание ошибки
+          example: Метод не поддерживается
   responses:
     400BadRequest:
       description: Неверные входные данные или формат JSON
@@ -154,8 +187,38 @@ components:
         application/json:
           schema:
             $ref: '#/components/schemas/Error'
-    405MethodNotAllowed:
-      description: Метод не поддерживается для данного эндпоинта
+    405MethodNotAllowedHealth:
+      description: Метод не поддерживается для /health
+      headers:
+        Allow:
+          schema:
+            type: string
+            example: GET
+          description: Список разрешенных методов
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    405MethodNotAllowedCollection:
+      description: Метод не поддерживается для коллекции /tasks
+      headers:
+        Allow:
+          schema:
+            type: string
+            example: GET, POST
+          description: Список разрешенных методов
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    405MethodNotAllowedItem:
+      description: Метод не поддерживается для отдельной задачи /tasks/{id}
+      headers:
+        Allow:
+          schema:
+            type: string
+            example: GET, PUT, DELETE
+          description: Список разрешенных методов
       content:
         application/json:
           schema:

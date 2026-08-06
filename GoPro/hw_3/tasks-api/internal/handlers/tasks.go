@@ -15,18 +15,29 @@ type Handler struct{ Store storage.Storage }
 
 func New(s storage.Storage) *Handler { return &Handler{Store: s} }
 
-// Вспомогательный метод для отправки JSON ошибок
 func (h *Handler) sendError(w http.ResponseWriter, status int, msg string) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(status)
 	_ = json.NewEncoder(w).Encode(map[string]string{"error": msg})
 }
 
-// Вспомогательный метод для отправки успешных JSON ответов
 func (h *Handler) sendJSON(w http.ResponseWriter, status int, data interface{}) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(status)
 	_ = json.NewEncoder(w).Encode(data)
+}
+
+// PRO: Health-check с ограничением по методу и заголовком Allow
+func (h *Handler) Health(w http.ResponseWriter, r *http.Request) {
+	log.Printf("[%s] %s", r.Method, r.URL.Path)
+
+	if r.Method != http.MethodGet {
+		w.Header().Set("Allow", "GET") // Указываем разрешенный метод
+		h.sendError(w, http.StatusMethodNotAllowed, "Метод не поддерживается")
+		return
+	}
+
+	h.sendJSON(w, http.StatusOK, map[string]string{"status": "OK"})
 }
 
 // /tasks (GET, POST)
@@ -54,6 +65,7 @@ func (h *Handler) TasksCollection(w http.ResponseWriter, r *http.Request) {
 		h.sendJSON(w, http.StatusCreated, created)
 
 	default:
+		w.Header().Set("Allow", "GET, POST") // Указываем разрешенные методы
 		h.sendError(w, http.StatusMethodNotAllowed, "Метод не поддерживается")
 	}
 }
@@ -62,7 +74,6 @@ func (h *Handler) TasksCollection(w http.ResponseWriter, r *http.Request) {
 func (h *Handler) TaskItem(w http.ResponseWriter, r *http.Request) {
 	log.Printf("[%s] %s", r.Method, r.URL.Path)
 
-	// Извлекаем ID из URL (например, "/tasks/1")
 	idStr := strings.TrimPrefix(r.URL.Path, "/tasks/")
 	id, err := strconv.Atoi(idStr)
 	if err != nil || id <= 0 {
@@ -107,6 +118,7 @@ func (h *Handler) TaskItem(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusNoContent)
 
 	default:
+		w.Header().Set("Allow", "GET, PUT, DELETE") // Указываем разрешенные методы
 		h.sendError(w, http.StatusMethodNotAllowed, "Метод не поддерживается")
 	}
 }

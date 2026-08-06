@@ -1,13 +1,33 @@
 {
     "info": {
-        "name": "Tasks API Collection",
+        "name": "Tasks API - Автотесты",
         "schema": "https://getpostman.com"
     },
     "item": [
         {
-            "name": "Health Check",
+            "name": "0. Проверка Health и Ошибка 405",
+            "event": [
+                {
+                    "listen": "test",
+                    "script": {
+                        "exec": [
+                            "pm.test(\"Статус-код должен быть 405\", function () {",
+                            "    pm.response.to.have.status(405);",
+                            "});",
+                            "pm.test(\"Наличие заголовка Allow: GET\", function () {",
+                            "    pm.response.to.have.header(\"Allow\", \"GET\");",
+                            "});",
+                            "pm.test(\"Формат ошибки в JSON\", function () {",
+                            "    var jsonData = pm.response.json();",
+                            "    pm.expect(jsonData).to.have.property(\"error\");",
+                            "});"
+                        ],
+                        "type": "text/javascript"
+                    }
+                }
+            ],
             "request": {
-                "method": "GET",
+                "method": "POST",
                 "header": [],
                 "url": {
                     "raw": "{{baseUrl}}/health",
@@ -22,24 +42,28 @@
             "response": []
         },
         {
-            "name": "Get All Tasks",
-            "request": {
-                "method": "GET",
-                "header": [],
-                "url": {
-                    "raw": "{{baseUrl}}/tasks",
-                    "host": [
-                        "{{baseUrl}}"
-                    ],
-                    "path": [
-                        "tasks"
-                    ]
+            "name": "1. Создание задачи (Успех)",
+            "event": [
+                {
+                    "listen": "test",
+                    "script": {
+                        "exec": [
+                            "pm.test(\"Статус-код 210 или 201 Created\", function () {",
+                            "    pm.response.to.have.status(201);",
+                            "});",
+                            "pm.test(\"Проверка полей созданной задачи\", function () {",
+                            "    var jsonData = pm.response.json();",
+                            "    pm.expect(jsonData).to.have.property(\"id\");",
+                            "    pm.expect(jsonData.title).to.eql(\"Зайти в Озон\");",
+                            "    pm.expect(jsonData.done).to.eql(false);",
+                            "    // Сохраняем ID динамически для следующих запросов",
+                            "    pm.collectionVariables.set(\"currentTaskId\", jsonData.id);",
+                            "});"
+                        ],
+                        "type": "text/javascript"
+                    }
                 }
-            },
-            "response": []
-        },
-        {
-            "name": "Create Task",
+            ],
             "request": {
                 "method": "POST",
                 "header": [
@@ -51,7 +75,7 @@
                 ],
                 "body": {
                     "mode": "raw",
-                    "raw": "{\n    \"title\": \"Зайти в Озон\",\n    \"done\": false\n}"
+                    "raw": "{\n    \"title\": \"Зайти в Озон\"\n}"
                 },
                 "url": {
                     "raw": "{{baseUrl}}/tasks",
@@ -66,25 +90,129 @@
             "response": []
         },
         {
-            "name": "Get Task By ID",
+            "name": "2. Получение списка и проверка типа",
+            "event": [
+                {
+                    "listen": "test",
+                    "script": {
+                        "exec": [
+                            "pm.test(\"Статус-код 200 OK\", function () {",
+                            "    pm.response.to.have.status(200);",
+                            "});",
+                            "pm.test(\"Ответ должен быть массивом JSON\", function () {",
+                            "    var jsonData = pm.response.json();",
+                            "    pm.expect(jsonData).to.be.an(\"array\");",
+                            "    pm.expect(jsonData.length).to.be.above(0);",
+                            "});"
+                        ],
+                        "type": "text/javascript"
+                    }
+                }
+            ],
             "request": {
                 "method": "GET",
                 "header": [],
                 "url": {
-                    "raw": "{{baseUrl}}/tasks/1",
+                    "raw": "{{baseUrl}}/tasks",
                     "host": [
                         "{{baseUrl}}"
                     ],
                     "path": [
-                        "tasks",
-                        "1"
+                        "tasks"
                     ]
                 }
             },
             "response": []
         },
         {
-            "name": "Update Task",
+            "name": "3. Получение созданной задачи по ID",
+            "event": [
+                {
+                    "listen": "test",
+                    "script": {
+                        "exec": [
+                            "pm.test(\"Статус-код 200 OK\", function () {",
+                            "    pm.response.to.have.status(200);",
+                            "});",
+                            "pm.test(\"ID в теле совпадает с запрашиваемым\", function () {",
+                            "    var jsonData = pm.response.json();",
+                            "    pm.expect(jsonData.id).to.eql(pm.collectionVariables.get(\"currentTaskId\"));",
+                            "});"
+                        ],
+                        "type": "text/javascript"
+                    }
+                }
+            ],
+            "request": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                    "raw": "{{baseUrl}}/tasks/{{currentTaskId}}",
+                    "host": [
+                        "{{baseUrl}}"
+                    ],
+                    "path": [
+                        "tasks",
+                        "{{currentTaskId}}"
+                    ]
+                }
+            },
+            "response": []
+        },
+        {
+            "name": "4. Ошибка 405 на уровне элемента",
+            "event": [
+                {
+                    "listen": "test",
+                    "script": {
+                        "exec": [
+                            "pm.test(\"Статус-код 405 Method Not Allowed\", function () {",
+                            "    pm.response.to.have.status(405);",
+                            "});",
+                            "pm.test(\"Проверка заголовка Allow для элемента\", function () {",
+                            "    pm.response.to.have.header(\"Allow\", \"GET, PUT, DELETE\");",
+                            "});"
+                        ],
+                        "type": "text/javascript"
+                    }
+                }
+            ],
+            "request": {
+                "method": "POST",
+                "header": [],
+                "url": {
+                    "raw": "{{baseUrl}}/tasks/{{currentTaskId}}",
+                    "host": [
+                        "{{baseUrl}}"
+                    ],
+                    "path": [
+                        "tasks",
+                        "{{currentTaskId}}"
+                    ]
+                }
+            },
+            "response": []
+        },
+        {
+            "name": "5. Полное обновление задачи (PUT)",
+            "event": [
+                {
+                    "listen": "test",
+                    "script": {
+                        "exec": [
+                            "pm.test(\"Статус-код 200 OK\", function () {",
+                            "    pm.response.to.have.status(200);",
+                            "});",
+                            "pm.test(\"Поля успешно изменились\", function () {",
+                            "    var jsonData = pm.response.json();",
+                            "    pm.expect(jsonData.title).to.eql(\"Забрать посылку из Озон\");",
+                            "    pm.expect(jsonData.done).to.eql(true);",
+                            "});"
+                        ],
+                        "type": "text/javascript"
+                    }
+                }
+            ],
             "request": {
                 "method": "PUT",
                 "header": [
@@ -99,31 +227,76 @@
                     "raw": "{\n    \"title\": \"Забрать посылку из Озон\",\n    \"done\": true\n}"
                 },
                 "url": {
-                    "raw": "{{baseUrl}}/tasks/1",
+                    "raw": "{{baseUrl}}/tasks/{{currentTaskId}}",
                     "host": [
                         "{{baseUrl}}"
                     ],
                     "path": [
                         "tasks",
-                        "1"
+                        "{{currentTaskId}}"
                     ]
                 }
             },
             "response": []
         },
         {
-            "name": "Delete Task",
+            "name": "6. Удаление задачи",
+            "event": [
+                {
+                    "listen": "test",
+                    "script": {
+                        "exec": [
+                            "pm.test(\"Статус-код 204 No Content\", function () {",
+                            "    pm.response.to.have.status(204);",
+                            "});"
+                        ],
+                        "type": "text/javascript"
+                    }
+                }
+            ],
             "request": {
                 "method": "DELETE",
                 "header": [],
                 "url": {
-                    "raw": "{{baseUrl}}/tasks/1",
+                    "raw": "{{baseUrl}}/tasks/{{currentTaskId}}",
                     "host": [
                         "{{baseUrl}}"
                     ],
                     "path": [
                         "tasks",
-                        "1"
+                        "{{currentTaskId}}"
+                    ]
+                }
+            },
+            "response": []
+        },
+        {
+            "name": "7. Проверка удаления (Должно быть 404)",
+            "event": [
+                {
+                    "listen": "test",
+                    "script": {
+                        "event": "test",
+                        "exec": [
+                            "pm.test(\"Статус-код 404 Not Found\", function () {",
+                            "    pm.response.to.have.status(404);",
+                            "});"
+                        ],
+                        "type": "text/javascript"
+                    }
+                }
+            ],
+            "request": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                    "raw": "{{baseUrl}}/tasks/{{currentTaskId}}",
+                    "host": [
+                        "{{baseUrl}}"
+                    ],
+                    "path": [
+                        "tasks",
+                        "{{currentTaskId}}"
                     ]
                 }
             },
@@ -134,6 +307,11 @@
         {
             "key": "baseUrl",
             "value": "http://localhost:8080",
+            "type": "string"
+        },
+        {
+            "key": "currentTaskId",
+            "value": "",
             "type": "string"
         }
     ]
