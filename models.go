@@ -46,3 +46,8 @@ type Claims struct {
 type contextKey string
 
 const userIDKey contextKey = "userID"
+
+// ProfileResponse описывает структуру ответа для профиля
+type ProfileResponse struct {
+	User User `json:"user"` // Передаем User по значению
+}
