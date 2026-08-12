@@ -1,0 +1,189 @@
+{
+    "info": {
+        "name": "Secure Service - Full E2E Test Suite",
+        "schema": "https://getpostman.com"
+    },
+    "item": [
+        {
+            "name": "1. Проверка здоровья сервиса",
+            "request": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                    "raw": "http://localhost:8080/health",
+                    "protocol": "http",
+                    "host": [
+                        "localhost"
+                    ],
+                    "port": "8080",
+                    "path": [
+                        "health"
+                    ]
+                }
+            },
+            "event": [
+                {
+                    "listen": "test",
+                    "script": {
+                        "exec": [
+                            "pm.test(\"Статус ответа 200 OK\", function () {",
+                            "    pm.response.to.have.status(200);",
+                            "});",
+                            "pm.test(\"Сервис работает и база отвечает\", function () {",
+                            "    var jsonData = pm.response.json();",
+                            "    pm.expect(jsonData.status).to.eql(\"ok\");",
+                            "    pm.expect(jsonData.message).to.eql(\"Service is running\");",
+                            "});"
+                        ],
+                        "type": "text/javascript"
+                    }
+                }
+            ]
+        },
+        {
+            "name": "2. Регистрация нового пользователя",
+            "request": {
+                "method": "POST",
+                "header": [
+                    {
+                        "key": "Content-Type",
+                        "value": "application/json",
+                        "type": "text"
+                    }
+                ],
+                "body": {
+                    "mode": "raw",
+                    "raw": "{\n    \"email\": \"postman_test@example.com\",\n    \"username\": \"postman_user\",\n    \"password\": \"SecurePass123\"\n}"
+                },
+                "url": {
+                    "raw": "http://localhost:8080/register",
+                    "protocol": "http",
+                    "host": [
+                        "localhost"
+                    ],
+                    "port": "8080",
+                    "path": [
+                        "register"
+                    ]
+                }
+            },
+            "event": [
+                {
+                    "listen": "test",
+                    "script": {
+                        "exec": [
+                            "pm.test(\"Регистрация успешна - статус 201\", function () {",
+                            "    pm.response.to.have.status(201);",
+                            "});",
+                            "pm.test(\"Ответ содержит токен и данные пользователя\", function () {",
+                            "    var jsonData = pm.response.json();",
+                            "    pm.expect(jsonData).to.have.property('token');",
+                            "    pm.expect(jsonData).to.have.property('user');",
+                            "    pm.expect(jsonData.user.username).to.eql(\"postman_user\");",
+                            "    pm.expect(jsonData.user.password_hash).to.be.undefined; // Проверка тега json:\"-\"",
+                            "});"
+                        ],
+                        "type": "text/javascript"
+                    }
+                }
+            ]
+        },
+        {
+            "name": "3. Вход в систему (Авторизация)",
+            "request": {
+                "method": "POST",
+                "header": [
+                    {
+                        "key": "Content-Type",
+                        "value": "application/json",
+                        "type": "text"
+                    }
+                ],
+                "body": {
+                    "mode": "raw",
+                    "raw": "{\n    \"email\": \"postman_test@example.com\",\n    \"password\": \"SecurePass123\"\n}"
+                },
+                "url": {
+                    "raw": "http://localhost:8080/login",
+                    "protocol": "http",
+                    "host": [
+                        "localhost"
+                    ],
+                    "port": "8080",
+                    "path": [
+                        "login"
+                    ]
+                }
+            },
+            "event": [
+                {
+                    "listen": "test",
+                    "script": {
+                        "exec": [
+                            "pm.test(\"Вход успешен - статус 200\", function () {",
+                            "    pm.response.to.have.status(200);",
+                            "});",
+                            "pm.test(\"JWT Токен получен и сохранен в коллекцию\", function () {",
+                            "    var jsonData = pm.response.json();",
+                            "    pm.expect(jsonData).to.have.property('token');",
+                            "    ",
+                            "    // Сохранение токена в переменную коллекции для следующего запроса профиля",
+                            "    pm.collectionVariables.set(\"jwt_token\", jsonData.token);",
+                            "});"
+                        ],
+                        "type": "text/javascript"
+                    }
+                }
+            ]
+        },
+        {
+            "name": "4. Получение защищенного профиля",
+            "request": {
+                "method": "GET",
+                "header": [
+                    {
+                        "key": "Authorization",
+                        "value": "Bearer {{jwt_token}}",
+                        "type": "text"
+                    }
+                ],
+                "url": {
+                    "raw": "http://localhost:8080/profile",
+                    "protocol": "http",
+                    "host": [
+                        "localhost"
+                    ],
+                    "port": "8080",
+                    "path": [
+                        "profile"
+                    ]
+                }
+            },
+            "event": [
+                {
+                    "listen": "test",
+                    "script": {
+                        "exec": [
+                            "pm.test(\"Доступ разрешен - статус 200\", function () {",
+                            "    pm.response.to.have.status(200);",
+                            "});",
+                            "pm.test(\"Данные профиля верны\", function () {",
+                            "    var jsonData = pm.response.json();",
+                            "    pm.expect(jsonData.user.email).to.eql(\"postman_test@example.com\");",
+                            "    pm.expect(jsonData.user.password_hash).to.be.undefined; // Хэш замаскирован",
+                            "});"
+                        ],
+                        "type": "text/javascript"
+                    }
+                }
+            ]
+        }
+    ],
+    "variable": [
+        {
+            "key": "jwt_token",
+            "value": "",
+            "type": "string"
+        }
+    ]
+}
