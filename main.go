@@ -16,18 +16,16 @@ func main() {
 	// Инициализация JWT секретного ключа
 	InitAuth()
 
-	// TODO: Инициализация подключения к базе данных
-	// Используйте функцию InitDB() из database.go
+	// Инициализация подключения к базе данных
 	if err := InitDB(); err != nil {
 		log.Fatal("Failed to connect to database:", err)
 	}
 	defer CloseDB()
 
-	// TODO: Настройка HTTP маршрутов
-	// Используйте обработчики из handlers.go
+	// Настройка HTTP маршрутов
 	http.HandleFunc("/register", RegisterHandler)
 	http.HandleFunc("/login", LoginHandler)
-	http.HandleFunc("/profile", AuthMiddleware(ProfileHandler))
+	http.HandleFunc("/profile", AuthMiddleware(http.HandlerFunc(ProfileHandler)))
 	http.HandleFunc("/health", HealthHandler)
 
 	// Запуск сервера

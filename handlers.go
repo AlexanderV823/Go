@@ -5,8 +5,8 @@ import (
 	"fmt"
 	"log"
 	"net/http"
-	"strings"
 	"regexp"
+	"strings"
 )
 
 var usernameRegex = regexp.MustCompile(`^[a-zA-Z0-9_]+$`)
