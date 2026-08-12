@@ -3,7 +3,6 @@ package main
 import (
 	"log"
 	"net/http"
-	"os"
 
 	"github.com/joho/godotenv"
 )
@@ -40,12 +39,4 @@ func main() {
 	log.Printf("❤️  Health: GET http://localhost:%s/health", port)
 
 	log.Fatal(http.ListenAndServe(":"+port, nil))
-}
-
-// getEnv получает значение переменной окружения или возвращает значение по умолчанию
-func getEnv(key, defaultValue string) string {
-	if value := os.Getenv(key); value != "" {
-		return value
-	}
-	return defaultValue
 }

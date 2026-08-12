@@ -11,6 +11,14 @@ import (
 // Глобальная переменная для подключения к БД
 var db *sql.DB
 
+// getEnv возвращает значение переменной окружения или дефолтное значение
+func getEnv(key, fallback string) string {
+	if value, exists := os.LookupEnv(key); exists {
+		return value
+	}
+	return fallback
+}
+
 // InitDB инициализирует подключение к базе данных
 func InitDB() error {
 
