@@ -41,3 +41,8 @@ type Claims struct {
 	Username string `json:"username"`
 	jwt.RegisteredClaims
 }
+
+// Кастомный тип для ключей контекста (предотвращает конфликты с другими библиотеками)
+type contextKey string
+
+const userIDKey contextKey = "userID"
