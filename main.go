@@ -3,10 +3,22 @@ package main
 import (
 	"log"
 	"net/http"
+	_ "secure-service/docs"
+	httpSwagger "github.com/swaggo/http-swagger"
 
 	"github.com/joho/godotenv"
 )
 
+// @title           Secure Service API
+// @version         1.0
+// @description     API микросервиса авторизации и управления профилями пользователей на Go.
+// @host            localhost:8080
+// @BasePath        /
+
+// @securityDefinitions.apiKey  BearerAuth
+// @in                          header
+// @name                        Authorization
+// @description                 Введите токен в формате: Bearer <ваш_jwt_токен>
 func main() {
 	// Загрузка переменных окружения из .env файла
 	if err := godotenv.Load(); err != nil {
@@ -27,6 +39,7 @@ func main() {
 	http.HandleFunc("/login", LoginHandler)
 	http.HandleFunc("/profile", AuthMiddleware(http.HandlerFunc(ProfileHandler)))
 	http.HandleFunc("/health", HealthHandler)
+	http.Handle("/swagger/", httpSwagger.WrapHandler)
 
 	// Запуск сервера
 	port := getEnv("SERVER_PORT", "8080")

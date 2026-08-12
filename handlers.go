@@ -12,6 +12,16 @@ import (
 var usernameRegex = regexp.MustCompile(`^[a-zA-Z0-9_]+$`)
 
 // RegisterHandler обрабатывает регистрацию нового пользователя
+// @Summary      Регистрация нового пользователя
+// @Description  Создает новый аккаунт пользователя в системе
+// @Tags         auth
+// @Accept       json
+// @Produce      json
+// @Param        request body      RegisterRequest  true  "Данные регистрации"
+// @Success      201     {object}  AuthResponse
+// @Failure      400     {object}  map[string]string "error: Invalid JSON or validation failed"
+// @Failure      409     {object}  map[string]string "error: User already exists"
+// @Router       /register [post]
 func RegisterHandler(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
 		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
@@ -78,6 +88,15 @@ func RegisterHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 // LoginHandler обрабатывает вход пользователя
+// @Summary      Вход в систему
+// @Description  Аутентификация пользователя по email и паролю
+// @Tags         auth
+// @Accept       json
+// @Produce      json
+// @Param        request body      LoginRequest  true  "Данные для входа"
+// @Success      200     {object}  AuthResponse
+// @Failure      401     {object}  map[string]string "error: Invalid email or password"
+// @Router       /login [post]
 func LoginHandler(w http.ResponseWriter, r *http.Request) {
 
 	if r.Method != http.MethodPost {
@@ -132,6 +151,15 @@ func LoginHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 // ProfileHandler возвращает профиль текущего пользователя
+// @Summary      Получение профиля текущего пользователя
+// @Description  Возвращает данные авторизованного пользователя. Требует JWT токен.
+// @Tags         profile
+// @Produce      json
+// @Security     BearerAuth
+// @Success      200     {object}  ProfileResponse
+// @Failure      401     {object}  map[string]string "error: Unauthorized"
+// @Failure      404     {object}  map[string]string "error: User not found"
+// @Router       /profile [get]
 func ProfileHandler(w http.ResponseWriter, r *http.Request) {
 
 	if r.Method != http.MethodGet {
@@ -168,6 +196,13 @@ func ProfileHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 // HealthHandler проверяет состояние сервиса
+// @Summary      Проверка здоровья сервиса
+// @Description  Проверяет работоспособность приложения и стабильность подключения к базе данных PostgreSQL
+// @Tags         system
+// @Produce      json
+// @Success      200     {object}  map[string]string "status: ok, message: Service is running"
+// @Failure      503     {string}  string            "Database connection failed"
+// @Router       /health [get]
 func HealthHandler(w http.ResponseWriter, r *http.Request) {
 	// Проверяем подключение к БД
 	if db != nil {

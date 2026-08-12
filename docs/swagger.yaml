@@ -1,0 +1,167 @@
+basePath: /
+definitions:
+  main.AuthResponse:
+    properties:
+      token:
+        type: string
+      user:
+        $ref: '#/definitions/main.User'
+    type: object
+  main.LoginRequest:
+    properties:
+      email:
+        type: string
+      password:
+        type: string
+    type: object
+  main.ProfileResponse:
+    properties:
+      user:
+        allOf:
+        - $ref: '#/definitions/main.User'
+        description: Передаем User по значению
+    type: object
+  main.RegisterRequest:
+    properties:
+      email:
+        type: string
+      password:
+        type: string
+      username:
+        type: string
+    type: object
+  main.User:
+    properties:
+      created_at:
+        type: string
+      email:
+        type: string
+      id:
+        type: integer
+      username:
+        type: string
+    type: object
+host: localhost:8080
+info:
+  contact: {}
+  description: API микросервиса авторизации и управления профилями пользователей на
+    Go.
+  title: Secure Service API
+  version: "1.0"
+paths:
+  /health:
+    get:
+      description: Проверяет работоспособность приложения и стабильность подключения
+        к базе данных PostgreSQL
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 'status: ok, message: Service is running'
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "503":
+          description: Database connection failed
+          schema:
+            type: string
+      summary: Проверка здоровья сервиса
+      tags:
+      - system
+  /login:
+    post:
+      consumes:
+      - application/json
+      description: Аутентификация пользователя по email и паролю
+      parameters:
+      - description: Данные для входа
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/main.LoginRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/main.AuthResponse'
+        "401":
+          description: 'error: Invalid email or password'
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: Вход в систему
+      tags:
+      - auth
+  /profile:
+    get:
+      description: Возвращает данные авторизованного пользователя. Требует JWT токен.
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/main.ProfileResponse'
+        "401":
+          description: 'error: Unauthorized'
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "404":
+          description: 'error: User not found'
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Получение профиля текущего пользователя
+      tags:
+      - profile
+  /register:
+    post:
+      consumes:
+      - application/json
+      description: Создает новый аккаунт пользователя в системе
+      parameters:
+      - description: Данные регистрации
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/main.RegisterRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/main.AuthResponse'
+        "400":
+          description: 'error: Invalid JSON or validation failed'
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "409":
+          description: 'error: User already exists'
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: Регистрация нового пользователя
+      tags:
+      - auth
+securityDefinitions:
+  BearerAuth:
+    description: 'Введите токен в формате: Bearer <ваш_jwt_токен>'
+    in: header
+    name: Authorization
+    type: apiKey
+swagger: "2.0"
