@@ -46,20 +46,25 @@ func CloseDB() {
 
 // CreateUser создает нового пользователя в базе данных
 func CreateUser(email, username, passwordHash string) (*User, error) {
-	// TODO: Реализуйте создание пользователя
-	// КРИТИЧЕСКИ ВАЖНО: Используйте параметризованный запрос для защиты от SQL-инъекций!
-	//
-	// Что нужно сделать:
-	// 1. Создайте SQL запрос с плейсхолдерами $1, $2, $3
-	//    INSERT INTO users (email, username, password_hash) VALUES ($1, $2, $3) RETURNING id, created_at
-	// 2. Выполните запрос с db.QueryRow(query, email, username, passwordHash)
-	// 3. Считайте результат в переменные user.ID и user.CreatedAt
-	// 4. Заполните остальные поля структуры User
-	// 5. Обработайте ошибки
-	//
-	// НИКОГДА не используйте fmt.Sprintf для построения SQL запросов!
 
-	return nil, fmt.Errorf("not implemented - реализуйте создание пользователя")
+	query := `
+		INSERT INTO users (email, username, password_hash)
+		VALUES ($1, $2, $3)
+		RETURNING id, created_at
+	`
+
+	// Инициализируем структуру для записи результата
+	user := &User{
+		Email:        email,
+		Username:     username,
+		PasswordHash: passwordHash,
+	}
+
+	err := db.QueryRow(query, email, username, passwordHash).Scan(&user.ID, &user.CreatedAt)
+	if err != nil {
+		return nil, fmt.Errorf("failed to insert user: %w", err)
+	}
+	return user, nil
 }
 
 // GetUserByEmail находит пользователя по email
