@@ -12,17 +12,6 @@ var db *sql.DB
 
 // InitDB инициализирует подключение к базе данных
 func InitDB() error {
-	// TODO: Реализуйте подключение к PostgreSQL
-	//
-	// Что нужно сделать:
-	// 1. Составьте строку подключения используя fmt.Sprintf()
-	//    Формат: "host=%s port=%s user=%s password=%s dbname=%s sslmode=disable"
-	// 2. Получите параметры из переменных окружения с помощью getEnv()
-	// 3. Откройте соединение с sql.Open("postgres", connStr)
-	// 4. Проверьте подключение с помощью db.Ping()
-	// 5. Обработайте ошибки на каждом шаге
-	//
-	// Переменные окружения: DB_HOST, DB_PORT, DB_USER, DB_PASSWORD, DB_NAME
 
 	connStr := fmt.Sprintf("host=%s port=%s user=%s password=%s dbname=%s sslmode=disable",
 		getEnv("DB_HOST", "localhost"),
@@ -33,13 +22,16 @@ func InitDB() error {
 	)
 
 	var err error
+
 	db, err = sql.Open("postgres", connStr)
+
 	if err != nil {
-		return fmt.Errorf("failed to open database: %v", err)
+		return fmt.Errorf("failed to open database: %w", err)
 	}
 
 	if err := db.Ping(); err != nil {
-		return fmt.Errorf("failed to ping database: %v", err)
+		db.Close() // Закрываем пул, если проверка не удалась
+		return fmt.Errorf("failed to ping database: %w", err)
 	}
 
 	return nil
