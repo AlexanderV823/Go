@@ -1,15 +1,15 @@
 package main
 
 import (
-	"net/http"
 	"context"
+	"net/http"
 	"strings"
 )
 
 // AuthMiddleware проверяет JWT токен и устанавливает контекст пользователя
 func AuthMiddleware(next http.HandlerFunc) http.HandlerFunc {
 
-return func(w http.ResponseWriter, r *http.Request) {
+	return func(w http.ResponseWriter, r *http.Request) {
 
 		authHeader := r.Header.Get("Authorization")
 
