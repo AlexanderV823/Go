@@ -51,7 +51,7 @@ go run cmd/analyzer/main.go
 Если вы хотите собрать готовый исполняемый файл:
 ```bash
 # Сборка приложения в папку bin
-go build -o bin/analyzer cmd/analyzer/main.go
+go build -o bin/analyzer.exe cmd/analyzer/main.go
 
 # Запуск скомпилированного файла (для Linux/macOS)
 ./bin/analyzer
