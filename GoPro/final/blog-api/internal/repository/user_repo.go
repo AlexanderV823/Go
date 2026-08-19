@@ -5,7 +5,6 @@ import (
 	"context"
 	"database/sql"
 	"errors"
-	"fmt"
 	"time"
 )
 
@@ -26,17 +25,6 @@ func NewUserRepo(db *sql.DB) *UserRepo {
 
 // Create создает нового пользователя
 func (r *UserRepo) Create(ctx context.Context, user *model.User) error {
-	// TODO: Реализовать создание пользователя
-	// 1. Подготовить SQL запрос INSERT INTO users...
-	// 2. Установить created_at и updated_at = time.Now()
-	// 3. Выполнить запрос и получить ID созданной записи
-	// 4. Установить ID в структуру user
-	//
-	// HINT: Используйте QueryRowContext с RETURNING id для получения ID
-	// Пример запроса:
-	// INSERT INTO users (username, email, password, created_at, updated_at)
-	// VALUES ($1, $2, $3, $4, $5) RETURNING id
-
 	query := `
 		INSERT INTO users (username, email, password, created_at, updated_at)
 		VALUES ($1, $2, $3, $4, $5)
@@ -47,21 +35,17 @@ func (r *UserRepo) Create(ctx context.Context, user *model.User) error {
 	user.CreatedAt = now
 	user.UpdatedAt = now
 
-	// TODO: Выполнить запрос и обработать результат
+	// Выполняем запрос и сканируем сгенерированный базой данных ID напрямую в структуру
+	err := r.db.QueryRowContext(ctx, query, user.Username, user.Email, user.Password, user.CreatedAt, user.UpdatedAt).Scan(&user.ID)
+	if err != nil {
+		return err
+	}
 
-	return fmt.Errorf("not implemented")
+	return nil
 }
 
 // GetByID получает пользователя по ID
 func (r *UserRepo) GetByID(ctx context.Context, id int) (*model.User, error) {
-	// TODO: Реализовать получение пользователя по ID
-	// 1. Подготовить SQL запрос SELECT ... FROM users WHERE id = $1
-	// 2. Выполнить запрос
-	// 3. Просканировать результат в структуру User
-	// 4. Обработать случай, когда пользователь не найден (sql.ErrNoRows)
-	//
-	// HINT: Используйте QueryRowContext и Scan
-
 	query := `
 		SELECT id, username, email, password, created_at, updated_at
 		FROM users
@@ -69,68 +53,151 @@ func (r *UserRepo) GetByID(ctx context.Context, id int) (*model.User, error) {
 	`
 
 	var user model.User
-	// TODO: Выполнить запрос и просканировать результат
-	// Не забудьте обработать sql.ErrNoRows и вернуть ErrUserNotFound
+	err := r.db.QueryRowContext(ctx, query, id).Scan(
+		&user.ID,
+		&user.Username,
+		&user.Email,
+		&user.Password,
+		&user.CreatedAt,
+		&user.UpdatedAt,
+	)
 
-	_ = query // Удалите эту строку после реализации
-	return nil, fmt.Errorf("not implemented")
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil, ErrUserNotFound
+		}
+		return nil, err
+	}
+
+	return &user, nil
 }
 
 // GetByEmail получает пользователя по email
 func (r *UserRepo) GetByEmail(ctx context.Context, email string) (*model.User, error) {
-	// TODO: Реализовать получение пользователя по email
-	// Аналогично GetByID, но поиск по полю email
+	query := `
+		SELECT id, username, email, password, created_at, updated_at
+		FROM users
+		WHERE email = $1
+	`
 
-	return nil, fmt.Errorf("not implemented")
+	var user model.User
+	err := r.db.QueryRowContext(ctx, query, email).Scan(
+		&user.ID,
+		&user.Username,
+		&user.Email,
+		&user.Password,
+		&user.CreatedAt,
+		&user.UpdatedAt,
+	)
+
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil, ErrUserNotFound
+		}
+		return nil, err
+	}
+
+	return &user, nil
 }
 
 // GetByUsername получает пользователя по username
 func (r *UserRepo) GetByUsername(ctx context.Context, username string) (*model.User, error) {
-	// TODO: Реализовать получение пользователя по username
-	// Аналогично GetByID, но поиск по полю username
+	query := `
+		SELECT id, username, email, password, created_at, updated_at
+		FROM users
+		WHERE username = $1
+	`
 
-	return nil, fmt.Errorf("not implemented")
+	var user model.User
+	err := r.db.QueryRowContext(ctx, query, username).Scan(
+		&user.ID,
+		&user.Username,
+		&user.Email,
+		&user.Password,
+		&user.CreatedAt,
+		&user.UpdatedAt,
+	)
+
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil, ErrUserNotFound
+		}
+		return nil, err
+	}
+
+	return &user, nil
 }
 
 // ExistsByEmail проверяет существование пользователя по email
 func (r *UserRepo) ExistsByEmail(ctx context.Context, email string) (bool, error) {
-	// TODO: Реализовать проверку существования пользователя
-	// HINT: Используйте SELECT EXISTS(SELECT 1 FROM users WHERE email = $1)
-
 	query := `SELECT EXISTS(SELECT 1 FROM users WHERE email = $1)`
 
 	var exists bool
-	// TODO: Выполнить запрос и просканировать результат в переменную exists
+	err := r.db.QueryRowContext(ctx, query, email).Scan(&exists)
+	if err != nil {
+		return false, err
+	}
 
-	_ = query // Удалите эту строку после реализации
-	return false, fmt.Errorf("not implemented")
+	return exists, nil
 }
 
 // ExistsByUsername проверяет существование пользователя по username
 func (r *UserRepo) ExistsByUsername(ctx context.Context, username string) (bool, error) {
-	// TODO: Реализовать проверку существования пользователя по username
-	// Аналогично ExistsByEmail
+	query := `SELECT EXISTS(SELECT 1 FROM users WHERE username = $1)`
 
-	return false, fmt.Errorf("not implemented")
+	var exists bool
+	err := r.db.QueryRowContext(ctx, query, username).Scan(&exists)
+	if err != nil {
+		return false, err
+	}
+
+	return exists, nil
 }
 
 // Update обновляет данные пользователя
 func (r *UserRepo) Update(ctx context.Context, user *model.User) error {
-	// TODO: (Опционально) Реализовать обновление пользователя
-	// 1. Подготовить SQL запрос UPDATE users SET ... WHERE id = $X
-	// 2. Обновить updated_at = time.Now()
-	// 3. Выполнить запрос
-	// 4. Проверить, что запись была обновлена (RowsAffected)
+	query := `
+		UPDATE users
+		SET username = $1, email = $2, password = $3, updated_at = $4
+		WHERE id = $5
+	`
 
-	return fmt.Errorf("not implemented")
+	user.UpdatedAt = time.Now()
+
+	result, err := r.db.ExecContext(ctx, query, user.Username, user.Email, user.Password, user.UpdatedAt, user.ID)
+	if err != nil {
+		return err
+	}
+
+	rowsAffected, err := result.RowsAffected()
+	if err != nil {
+		return err
+	}
+
+	if rowsAffected == 0 {
+		return ErrUserNotFound
+	}
+
+	return nil
 }
 
 // Delete удаляет пользователя
 func (r *UserRepo) Delete(ctx context.Context, id int) error {
-	// TODO: (Опционально) Реализовать удаление пользователя
-	// 1. Подготовить SQL запрос DELETE FROM users WHERE id = $1
-	// 2. Выполнить запрос
-	// 3. Проверить, что запись была удалена (RowsAffected)
+	query := `DELETE FROM users WHERE id = $1`
 
-	return fmt.Errorf("not implemented")
+	result, err := r.db.ExecContext(ctx, id)
+	if err != nil {
+		return err
+	}
+
+	rowsAffected, err := result.RowsAffected()
+	if err != nil {
+		return err
+	}
+
+	if rowsAffected == 0 {
+		return ErrUserNotFound
+	}
+
+	return nil
 }
