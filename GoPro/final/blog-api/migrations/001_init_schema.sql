@@ -2,7 +2,7 @@
 -- 1. СОЗДАНИЕ ТАБЛИЦ С ОГРАНИЧЕНИЯМИ (CONSTRAINTS)
 -- =========================================================================
 
--- Таблица пользователей
+-- 1. Таблица пользователей
 CREATE TABLE IF NOT EXISTS users (
     id SERIAL PRIMARY KEY,
     username VARCHAR(50) UNIQUE NOT NULL,
@@ -16,7 +16,7 @@ CREATE TABLE IF NOT EXISTS users (
     CONSTRAINT check_email_not_empty CHECK (LENGTH(TRIM(email)) > 0)
 );
 
--- Таблица постов
+-- 2. Таблица постов
 CREATE TABLE IF NOT EXISTS posts (
     id SERIAL PRIMARY KEY,
     title VARCHAR(200) NOT NULL,
@@ -29,12 +29,12 @@ CREATE TABLE IF NOT EXISTS posts (
     CONSTRAINT check_title_not_empty CHECK (LENGTH(TRIM(title)) > 0),
     CONSTRAINT check_content_not_empty CHECK (LENGTH(TRIM(content)) > 0),
 
-    -- Внешний ключ: при удалении автора удаляются и его посты
+    -- Внешний ключ: при удалении пользователя удаляются и его посты
     CONSTRAINT fk_posts_author FOREIGN KEY (author_id)
         REFERENCES users(id) ON DELETE CASCADE
 );
 
--- Таблица комментариев
+-- 3. Таблица комментариев
 CREATE TABLE IF NOT EXISTS comments (
     id SERIAL PRIMARY KEY,
     content TEXT NOT NULL,
@@ -42,10 +42,7 @@ CREATE TABLE IF NOT EXISTS comments (
     author_id INTEGER NOT NULL,
     created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
 
-    -- Ограничения данных
-    CONSTRAINT check_comment_not_empty CHECK (LENGTH(TRIM(content)) > 0),
-
-    -- Внешние ключи: удаление каскадом при удалении поста или автора
+    -- Внешние ключи: каскадное удаление при удалении поста или автора
     CONSTRAINT fk_comments_post FOREIGN KEY (post_id)
         REFERENCES posts(id) ON DELETE CASCADE,
     CONSTRAINT fk_comments_author FOREIGN KEY (author_id)
@@ -62,7 +59,7 @@ CREATE INDEX IF NOT EXISTS idx_posts_author_id ON posts(author_id);
 -- Для быстрой загрузки ленты постов (сортировка от новых к старым)
 CREATE INDEX IF NOT EXISTS idx_posts_created_at_desc ON posts(created_at DESC);
 
--- Для быстрого поиска всех комментариев к посту
+-- Быстрая выборка всех комментариев к конкретному посту
 CREATE INDEX IF NOT EXISTS idx_comments_post_id ON comments(post_id);
 
 -- Параллельный индекс для комментариев (чтобы знать, кто автор)
