@@ -1,45 +1,95 @@
--- Миграция для создания начальной схемы базы данных
--- TODO: Реализуйте создание таблиц для блог-платформы
+-- =========================================================================
+-- 1. СОЗДАНИЕ ТАБЛИЦ С ОГРАНИЧЕНИЯМИ (CONSTRAINTS)
+-- =========================================================================
 
 -- Таблица пользователей
--- TODO: Создайте таблицу users со следующими полями:
--- - id (serial, primary key)
--- - username (varchar(50), unique, not null)
--- - email (varchar(255), unique, not null)
--- - password (varchar(255), not null) - для хешированного пароля
--- - created_at (timestamp, not null)
--- - updated_at (timestamp, not null)
+CREATE TABLE IF NOT EXISTS users (
+    id SERIAL PRIMARY KEY,
+    username VARCHAR(50) UNIQUE NOT NULL,
+    email VARCHAR(255) UNIQUE NOT NULL,
+    password VARCHAR(255) NOT NULL,
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
 
--- Пример структуры:
--- CREATE TABLE IF NOT EXISTS users (
---     ...ваши поля здесь...
--- );
+    -- Проверка на то, что поля не пустые строки
+    CONSTRAINT check_username_not_empty CHECK (LENGTH(TRIM(username)) > 0),
+    CONSTRAINT check_email_not_empty CHECK (LENGTH(TRIM(email)) > 0)
+);
 
 -- Таблица постов
--- TODO: Создайте таблицу posts со следующими полями:
--- - id (serial, primary key)
--- - title (varchar(200), not null)
--- - content (text, not null)
--- - author_id (integer, foreign key на users.id)
--- - created_at (timestamp, not null)
--- - updated_at (timestamp, not null)
+CREATE TABLE IF NOT EXISTS posts (
+    id SERIAL PRIMARY KEY,
+    title VARCHAR(200) NOT NULL,
+    content TEXT NOT NULL,
+    author_id INTEGER NOT NULL,
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    -- Ограничения данных
+    CONSTRAINT check_title_not_empty CHECK (LENGTH(TRIM(title)) > 0),
+    CONSTRAINT check_content_not_empty CHECK (LENGTH(TRIM(content)) > 0),
+
+    -- Внешний ключ: при удалении автора удаляются и его посты
+    CONSTRAINT fk_posts_author FOREIGN KEY (author_id)
+        REFERENCES users(id) ON DELETE CASCADE
+);
 
 -- Таблица комментариев
--- TODO: Создайте таблицу comments со следующими полями:
--- - id (serial, primary key)
--- - content (text, not null)
--- - post_id (integer, foreign key на posts.id)
--- - author_id (integer, foreign key на users.id)
--- - created_at (timestamp, not null)
+CREATE TABLE IF NOT EXISTS comments (
+    id SERIAL PRIMARY KEY,
+    content TEXT NOT NULL,
+    post_id INTEGER NOT NULL,
+    author_id INTEGER NOT NULL,
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
 
--- Индексы
--- TODO: Создайте индексы для оптимизации запросов:
--- - Индекс на posts.author_id для быстрого поиска постов пользователя
--- - Индекс на comments.post_id для быстрого поиска комментариев к посту
--- - Индекс на posts.created_at для сортировки по дате
+    -- Ограничения данных
+    CONSTRAINT check_comment_not_empty CHECK (LENGTH(TRIM(content)) > 0),
 
--- Подсказки:
--- 1. Используйте IF NOT EXISTS для избежания ошибок при повторном запуске
--- 2. Для foreign key используйте ON DELETE CASCADE для автоматического удаления связанных записей
--- 3. Для timestamp полей можно использовать DEFAULT CURRENT_TIMESTAMP
--- 4. Не забудьте про ограничения (constraints) для валидации данных
+    -- Внешние ключи: удаление каскадом при удалении поста или автора
+    CONSTRAINT fk_comments_post FOREIGN KEY (post_id)
+        REFERENCES posts(id) ON DELETE CASCADE,
+    CONSTRAINT fk_comments_author FOREIGN KEY (author_id)
+        REFERENCES users(id) ON DELETE CASCADE
+);
+
+-- =========================================================================
+-- 2. СОЗДАНИЕ ИНДЕКСОВ
+-- =========================================================================
+
+-- Для быстрого поиска всех постов конкретного автора
+CREATE INDEX IF NOT EXISTS idx_posts_author_id ON posts(author_id);
+
+-- Для быстрой загрузки ленты постов (сортировка от новых к старым)
+CREATE INDEX IF NOT EXISTS idx_posts_created_at_desc ON posts(created_at DESC);
+
+-- Для быстрого поиска всех комментариев к посту
+CREATE INDEX IF NOT EXISTS idx_comments_post_id ON comments(post_id);
+
+-- Параллельный индекс для комментариев (чтобы знать, кто автор)
+CREATE INDEX IF NOT EXISTS idx_comments_author_id ON comments(author_id);
+
+
+-- =========================================================================
+-- 3. АВТОМАТИЗАЦИЯ ПОЛЯ updated_at (ДЛЯ POSTGRESQL)
+-- =========================================================================
+
+-- Создаем функцию, которая меняет updated_at на текущее время
+CREATE OR REPLACE FUNCTION update_modified_column()
+RETURNS TRIGGER AS $$
+BEGIN
+    NEW.updated_at = CURRENT_TIMESTAMP;
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+-- Триггер для таблицы users
+CREATE OR REPLACE TRIGGER update_users_modtime
+    BEFORE UPDATE ON users
+    FOR EACH ROW
+    EXECUTE FUNCTION update_modified_column();
+
+-- Триггер для таблицы posts
+CREATE OR REPLACE TRIGGER update_posts_modtime
+    BEFORE UPDATE ON posts
+    FOR EACH ROW
+    EXECUTE FUNCTION update_modified_column();
