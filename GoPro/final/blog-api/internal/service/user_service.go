@@ -7,12 +7,14 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"net/mail"
 )
 
 var (
 	ErrUserAlreadyExists  = errors.New("user already exists")
 	ErrInvalidCredentials = errors.New("invalid credentials")
 	ErrUserNotFound       = errors.New("user not found")
+	ErrInvalidInput       = errors.New("invalid input data")
 )
 
 type UserService struct {
@@ -28,55 +30,132 @@ func NewUserService(userRepo repository.UserRepository, jwtManager *auth.JWTMana
 }
 
 func (s *UserService) Register(ctx context.Context, req *model.UserCreateRequest) (*model.TokenResponse, error) {
-	// TODO: Реализовать регистрацию пользователя
-	// Шаги:
-	// 1. Валидация входных данных (username >= 3 символов, email валидный, пароль >= 6 символов)
-	// 2. Проверить уникальность email через репозиторий
-	// 3. Проверить уникальность username через репозиторий
-	// 4. Захешировать пароль используя пакет auth
-	// 5. Создать модель пользователя с хешированным паролем
-	// 6. Сохранить пользователя через репозиторий
-	// 7. Сгенерировать JWT токен для нового пользователя
-	// 8. Вернуть TokenResponse с токеном и данными пользователя
 
-	return nil, fmt.Errorf("not implemented")
+	if err := validateUserCreateRequest(req); err != nil {
+		return nil, fmt.Errorf("%w: %v", ErrInvalidInput, err)
+	}
+
+	emailExists, err := s.userRepo.ExistsByEmail(ctx, req.Email)
+	if err != nil {
+		return nil, fmt.Errorf("failed to check email uniqueness: %w", err)
+	}
+	if emailExists {
+		return nil, ErrUserAlreadyExists
+	}
+
+	usernameExists, err := s.userRepo.ExistsByUsername(ctx, req.Username)
+	if err != nil {
+		return nil, fmt.Errorf("failed to check username uniqueness: %w", err)
+	}
+	if usernameExists {
+		return nil, ErrUserAlreadyExists
+	}
+
+	hashedPassword, err := auth.HashPassword(req.Password)
+	if err != nil {
+		return nil, fmt.Errorf("failed to hash password: %w", err)
+	}
+
+	user := &model.User{
+		Username: req.Username,
+		Email:    req.Email,
+		Password: hashedPassword,
+	}
+
+	if err := s.userRepo.Create(ctx, user); err != nil {
+		return nil, fmt.Errorf("failed to create user: %w", err)
+	}
+
+	token, err := s.jwtManager.GenerateToken(user.ID, user.Username)
+	if err != nil {
+		return nil, fmt.Errorf("failed to generate token: %w", err)
+	}
+
+	return &model.TokenResponse{
+		Token: token,
+		User:  user,
+	}, nil
 }
 
 func (s *UserService) Login(ctx context.Context, req *model.UserLoginRequest) (*model.TokenResponse, error) {
-	// TODO: Реализовать вход пользователя
-	// Шаги:
-	// 1. Валидация входных данных
-	// 2. Найти пользователя по email через репозиторий
-	// 3. Проверить пароль используя функцию из пакета auth
-	// 4. Сгенерировать JWT токен при успешной аутентификации
-	// 5. Вернуть TokenResponse
-	// ВАЖНО: При ошибке не раскрывать, что именно неправильно (email или пароль)
 
-	return nil, fmt.Errorf("not implemented")
+	if err := validateUserLoginRequest(req); err != nil {
+		return nil, fmt.Errorf("%w: %v", ErrInvalidInput, err)
+	}
+
+	user, err := s.userRepo.GetByEmail(ctx, req.Email)
+	if err != nil {
+		if errors.Is(err, repository.ErrUserNotFound) {
+			return nil, ErrInvalidCredentials // Скрываем, что email не найден
+		}
+		return nil, fmt.Errorf("failed to fetch user: %w", err)
+	}
+
+	if !auth.CheckPassword(req.Password, user.Password) {
+		return nil, ErrInvalidCredentials // Скрываем, что пароль неверный
+	}
+
+	token, err := s.jwtManager.GenerateToken(user.ID, user.Username)
+	if err != nil {
+		return nil, fmt.Errorf("failed to generate token: %w", err)
+	}
+
+	return &model.TokenResponse{
+		Token: token,
+		User:  user,
+	}, nil
 }
 
 func (s *UserService) GetByID(ctx context.Context, id int) (*model.User, error) {
-	// TODO: Получить пользователя по ID через репозиторий
-
-	return nil, fmt.Errorf("not implemented")
+	user, err := s.userRepo.GetByID(ctx, id)
+	if err != nil {
+		if errors.Is(err, repository.ErrUserNotFound) {
+			return nil, ErrUserNotFound
+		}
+		return nil, fmt.Errorf("failed to get user by id: %w", err)
+	}
+	return user, nil
 }
 
 func (s *UserService) GetByEmail(ctx context.Context, email string) (*model.User, error) {
-	// TODO: Получить пользователя по email через репозиторий
-
-	return nil, fmt.Errorf("not implemented")
+	user, err := s.userRepo.GetByEmail(ctx, email)
+	if err != nil {
+		if errors.Is(err, repository.ErrUserNotFound) {
+			return nil, ErrUserNotFound
+		}
+		return nil, fmt.Errorf("failed to get user by email: %w", err)
+	}
+	return user, nil
 }
 
 // validateUserCreateRequest проверяет корректность данных для регистрации
 func validateUserCreateRequest(req *model.UserCreateRequest) error {
-	// TODO: Реализовать проверку всех полей
-
+	if req == nil {
+		return errors.New("request cannot be nil")
+	}
+	if len(req.Username) < 3 {
+		return errors.New("username must be at least 3 characters long")
+	}
+	if _, err := mail.ParseAddress(req.Email); err != nil {
+		return errors.New("invalid email format")
+	}
+	// Используем нашу функцию валидации из пакета auth
+	if err := auth.ValidatePasswordStrength(req.Password); err != nil {
+		return fmt.Errorf("weak password: %w", err)
+	}
 	return nil
 }
 
 // validateUserLoginRequest проверяет корректность данных для входа
 func validateUserLoginRequest(req *model.UserLoginRequest) error {
-	// TODO: Реализовать проверку полей
-
+	if req == nil {
+		return errors.New("request cannot be nil")
+	}
+	if _, err := mail.ParseAddress(req.Email); err != nil {
+		return errors.New("invalid email format")
+	}
+	if len(req.Password) == 0 {
+		return errors.New("password cannot be empty")
+	}
 	return nil
 }
