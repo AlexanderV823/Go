@@ -81,4 +81,10 @@ type CommentRepository interface {
 
 	// Delete удаляет комментарий по ID
 	Delete(ctx context.Context, id int) error
+
+	// GetByAuthorID получает комментарии конкретного автора с пагинацией
+	GetByAuthorID(ctx context.Context, authorID int, limit, offset int) ([]*model.Comment, error)
+
+	// GetCountByAuthorID получает количество комментариев конкретного автора
+	GetCountByAuthorID(ctx context.Context, authorID int) (int, error)
 }
