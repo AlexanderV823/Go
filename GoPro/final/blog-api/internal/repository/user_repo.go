@@ -5,6 +5,7 @@ import (
 	"context"
 	"database/sql"
 	"errors"
+	"fmt"
 	"time"
 )
 
@@ -35,10 +36,9 @@ func (r *UserRepo) Create(ctx context.Context, user *model.User) error {
 	user.CreatedAt = now
 	user.UpdatedAt = now
 
-	// Выполняем запрос и сканируем сгенерированный базой данных ID напрямую в структуру
 	err := r.db.QueryRowContext(ctx, query, user.Username, user.Email, user.Password, user.CreatedAt, user.UpdatedAt).Scan(&user.ID)
 	if err != nil {
-		return err
+		return fmt.Errorf("create user: %w", err)
 	}
 
 	return nil
@@ -66,7 +66,7 @@ func (r *UserRepo) GetByID(ctx context.Context, id int) (*model.User, error) {
 		if errors.Is(err, sql.ErrNoRows) {
 			return nil, ErrUserNotFound
 		}
-		return nil, err
+		return nil, fmt.Errorf("get user by id: %w", err)
 	}
 
 	return &user, nil
@@ -94,7 +94,7 @@ func (r *UserRepo) GetByEmail(ctx context.Context, email string) (*model.User, e
 		if errors.Is(err, sql.ErrNoRows) {
 			return nil, ErrUserNotFound
 		}
-		return nil, err
+		return nil, fmt.Errorf("get user by email: %w", err)
 	}
 
 	return &user, nil
@@ -122,7 +122,7 @@ func (r *UserRepo) GetByUsername(ctx context.Context, username string) (*model.U
 		if errors.Is(err, sql.ErrNoRows) {
 			return nil, ErrUserNotFound
 		}
-		return nil, err
+		return nil, fmt.Errorf("get user by username: %w", err)
 	}
 
 	return &user, nil
@@ -135,7 +135,7 @@ func (r *UserRepo) ExistsByEmail(ctx context.Context, email string) (bool, error
 	var exists bool
 	err := r.db.QueryRowContext(ctx, query, email).Scan(&exists)
 	if err != nil {
-		return false, err
+		return false, fmt.Errorf("exists by email: %w", err)
 	}
 
 	return exists, nil
@@ -148,7 +148,7 @@ func (r *UserRepo) ExistsByUsername(ctx context.Context, username string) (bool,
 	var exists bool
 	err := r.db.QueryRowContext(ctx, query, username).Scan(&exists)
 	if err != nil {
-		return false, err
+		return false, fmt.Errorf("exists by username: %w", err)
 	}
 
 	return exists, nil
@@ -166,12 +166,12 @@ func (r *UserRepo) Update(ctx context.Context, user *model.User) error {
 
 	result, err := r.db.ExecContext(ctx, query, user.Username, user.Email, user.Password, user.UpdatedAt, user.ID)
 	if err != nil {
-		return err
+		return fmt.Errorf("update user: %w", err)
 	}
 
 	rowsAffected, err := result.RowsAffected()
 	if err != nil {
-		return err
+		return fmt.Errorf("update user rows affected: %w", err)
 	}
 
 	if rowsAffected == 0 {
@@ -185,14 +185,14 @@ func (r *UserRepo) Update(ctx context.Context, user *model.User) error {
 func (r *UserRepo) Delete(ctx context.Context, id int) error {
 	query := `DELETE FROM users WHERE id = $1`
 
-	result, err := r.db.ExecContext(ctx, id)
+	result, err := r.db.ExecContext(ctx, query, id)
 	if err != nil {
-		return err
+		return fmt.Errorf("delete user: %w", err)
 	}
 
 	rowsAffected, err := result.RowsAffected()
 	if err != nil {
-		return err
+		return fmt.Errorf("delete user rows affected: %w", err)
 	}
 
 	if rowsAffected == 0 {
