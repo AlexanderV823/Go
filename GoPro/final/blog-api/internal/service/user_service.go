@@ -30,7 +30,6 @@ func NewUserService(userRepo repository.UserRepository, jwtManager *auth.JWTMana
 }
 
 func (s *UserService) Register(ctx context.Context, req *model.UserCreateRequest) (*model.TokenResponse, error) {
-
 	if err := validateUserCreateRequest(req); err != nil {
 		return nil, fmt.Errorf("%w: %v", ErrInvalidInput, err)
 	}
@@ -66,19 +65,22 @@ func (s *UserService) Register(ctx context.Context, req *model.UserCreateRequest
 		return nil, fmt.Errorf("failed to create user: %w", err)
 	}
 
-	token, err := s.jwtManager.GenerateToken(user.ID, user.Username)
+	token, _, err := s.jwtManager.GenerateToken(user.ID, user.Email, user.Username)
 	if err != nil {
 		return nil, fmt.Errorf("failed to generate token: %w", err)
 	}
 
 	return &model.TokenResponse{
 		Token: token,
-		User:  user,
+		User: model.UserResponse{
+			ID:       user.ID,
+			Username: user.Username,
+			Email:    user.Email,
+		},
 	}, nil
 }
 
 func (s *UserService) Login(ctx context.Context, req *model.UserLoginRequest) (*model.TokenResponse, error) {
-
 	if err := validateUserLoginRequest(req); err != nil {
 		return nil, fmt.Errorf("%w: %v", ErrInvalidInput, err)
 	}
@@ -86,23 +88,27 @@ func (s *UserService) Login(ctx context.Context, req *model.UserLoginRequest) (*
 	user, err := s.userRepo.GetByEmail(ctx, req.Email)
 	if err != nil {
 		if errors.Is(err, repository.ErrUserNotFound) {
-			return nil, ErrInvalidCredentials // Скрываем, что email не найден
+			return nil, ErrInvalidCredentials
 		}
 		return nil, fmt.Errorf("failed to fetch user: %w", err)
 	}
 
 	if !auth.CheckPassword(req.Password, user.Password) {
-		return nil, ErrInvalidCredentials // Скрываем, что пароль неверный
+		return nil, ErrInvalidCredentials
 	}
 
-	token, err := s.jwtManager.GenerateToken(user.ID, user.Username)
+	token, _, err := s.jwtManager.GenerateToken(user.ID, user.Email, user.Username)
 	if err != nil {
 		return nil, fmt.Errorf("failed to generate token: %w", err)
 	}
 
 	return &model.TokenResponse{
 		Token: token,
-		User:  user,
+		User: model.UserResponse{
+			ID:       user.ID,
+			Username: user.Username,
+			Email:    user.Email,
+		},
 	}, nil
 }
 
@@ -128,7 +134,6 @@ func (s *UserService) GetByEmail(ctx context.Context, email string) (*model.User
 	return user, nil
 }
 
-// validateUserCreateRequest проверяет корректность данных для регистрации
 func validateUserCreateRequest(req *model.UserCreateRequest) error {
 	if req == nil {
 		return errors.New("request cannot be nil")
@@ -139,14 +144,12 @@ func validateUserCreateRequest(req *model.UserCreateRequest) error {
 	if _, err := mail.ParseAddress(req.Email); err != nil {
 		return errors.New("invalid email format")
 	}
-	// Используем нашу функцию валидации из пакета auth
-	if err := auth.ValidatePasswordStrength(req.Password); err != nil {
-		return fmt.Errorf("weak password: %w", err)
+	if len(req.Password) < 6 {
+		return errors.New("password must be at least 6 characters long")
 	}
 	return nil
 }
 
-// validateUserLoginRequest проверяет корректность данных для входа
 func validateUserLoginRequest(req *model.UserLoginRequest) error {
 	if req == nil {
 		return errors.New("request cannot be nil")
