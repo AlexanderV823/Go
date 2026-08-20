@@ -22,7 +22,6 @@ type Post struct {
 	AuthorID  int       `json:"author_id" db:"author_id"`
 	CreatedAt time.Time `json:"created_at" db:"created_at"`
 	UpdatedAt time.Time `json:"updated_at" db:"updated_at"`
-	Author    *User     `json:"-"` // Используется для обогащения данных в сервисах
 }
 
 // Comment представляет модель комментария к посту
@@ -33,7 +32,6 @@ type Comment struct {
 	AuthorID  int       `json:"author_id" db:"author_id"`
 	CreatedAt time.Time `json:"created_at" db:"created_at"`
 	UpdatedAt time.Time `json:"updated_at" db:"updated_at"`
-	Author    *User     `json:"-"` // Используется для обогащения данных в сервисах
 }
 
 // UserCreateRequest представляет запрос на создание пользователя
@@ -63,12 +61,6 @@ type PostUpdateRequest struct {
 
 // CommentCreateRequest представляет запрос на создание комментария
 type CommentCreateRequest struct {
-	PostID  int    `json:"post_id" validate:"required"`
-	Content string `json:"content" validate:"required,min=1,max=1000"`
-}
-
-// CommentUpdateRequest представляет запрос на обновление комментария
-type CommentUpdateRequest struct {
 	Content string `json:"content" validate:"required,min=1,max=1000"`
 }
 
@@ -107,8 +99,8 @@ type CommentResponse struct {
 	UpdatedAt time.Time    `json:"updated_at"`
 }
 
-// User.ToResponse() преобразует User в UserResponse
-func (u *User) ToResponse() UserResponse {
+// ToResponse преобразует User в UserResponse
+func (u User) ToResponse() UserResponse {
 	return UserResponse{
 		ID:        u.ID,
 		Username:  u.Username,
@@ -117,22 +109,22 @@ func (u *User) ToResponse() UserResponse {
 	}
 }
 
-// Post.CanBeEditedBy проверяет, может ли пользователь редактировать пост
-func (p *Post) CanBeEditedBy(userID int) bool {
+// CanBeEditedBy проверяет, может ли пользователь редактировать пост
+func (p Post) CanBeEditedBy(userID int) bool {
 	return p.AuthorID == userID
 }
 
-// Post.CanBeDeletedBy проверяет, может ли пользователь удалить пост
-func (p *Post) CanBeDeletedBy(userID int) bool {
+// CanBeDeletedBy проверяет, может ли пользователь удалить пост
+func (p Post) CanBeDeletedBy(userID int) bool {
 	return p.AuthorID == userID
 }
 
-// Comment.CanBeEditedBy проверяет, может ли пользователь редактировать комментарий
-func (c *Comment) CanBeEditedBy(userID int) bool {
+// CanBeEditedBy проверяет, может ли пользователь adolescent редактировать комментарий
+func (c Comment) CanBeEditedBy(userID int) bool {
 	return c.AuthorID == userID
 }
 
-// Comment.CanBeDeletedBy проверяет, может ли пользователь удалить комментарий
-func (c *Comment) CanBeDeletedBy(userID int) bool {
+// CanBeDeletedBy проверяет, может ли пользователь удалить комментарий
+func (c Comment) CanBeDeletedBy(userID int) bool {
 	return c.AuthorID == userID
 }
