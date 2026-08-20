@@ -12,8 +12,6 @@ import (
 var (
 	ErrCommentNotFound = errors.New("comment not found")
 	ErrPostNotExists   = errors.New("post does not exist")
-	ErrForbidden       = errors.New("forbidden: you are not the author")
-	ErrInvalidInput    = errors.New("invalid input data")
 )
 
 type CommentService struct {
