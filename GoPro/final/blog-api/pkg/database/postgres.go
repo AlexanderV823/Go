@@ -21,33 +21,29 @@ type Config struct {
 
 // NewPostgresDB создает новое подключение к PostgreSQL
 func NewPostgresDB(cfg Config) (*sql.DB, error) {
-	// 1. Сформировать строку подключения (DSN) из параметров конфигурации
+
 	dsn := GetDSN(cfg)
 
-	// 2. Открыть соединение с БД используя sql.Open("postgres", dsn)
 	db, err := sql.Open("postgres", dsn)
 	if err != nil {
 		return nil, fmt.Errorf("ошибка открытия базы данных: %w", err)
 	}
 
-	// 3. Проверить соединение методом Ping()
 	if err := CheckConnection(db); err != nil {
 		db.Close()
 		return nil, fmt.Errorf("база данных недоступна: %w", err)
 	}
 
-	// 4. Настроить пул соединений (SetMaxOpenConns, SetMaxIdleConns)
 	db.SetMaxOpenConns(25)                 // Максимальное количество открытых соединений
 	db.SetMaxIdleConns(25)                 // Максимальное количество простаивающих соединений
 	db.SetConnMaxLifetime(5 * time.Minute) // Максимальное время жизни соединения
 
-	// 5. Вернуть подключение или ошибку
 	return db, nil
 }
 
 // Migrate выполняет миграции базы данных в транзакции
 func Migrate(db *sql.DB) error {
-	// 1-4. SQL запросы для создания таблиц и необходимых индексов
+
 	queries := []string{
 		`CREATE TABLE IF NOT EXISTS users (
 			id SERIAL PRIMARY KEY,
@@ -73,18 +69,15 @@ func Migrate(db *sql.DB) error {
 			created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
 			updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 		);`,
-		// Дополнительные индексы для ускорения выборок и пагинации
 		`CREATE INDEX IF NOT EXISTS idx_posts_created_at ON posts(created_at DESC);`,
 		`CREATE INDEX IF NOT EXISTS idx_comments_post_id ON comments(post_id);`,
 	}
 
-	// 5. Выполнить каждый запрос в транзакции
 	tx, err := db.Begin()
 	if err != nil {
 		return fmt.Errorf("не удалось начать транзакцию миграций: %w", err)
 	}
 
-	// Гарантируем откат транзакции в случае паники или ошибки до коммита
 	defer tx.Rollback()
 
 	for _, query := range queries {
@@ -93,7 +86,6 @@ func Migrate(db *sql.DB) error {
 		}
 	}
 
-	// Коммитим транзакцию, если все запросы прошли успешно
 	if err := tx.Commit(); err != nil {
 		return fmt.Errorf("не удалось применить транзакцию миграций: %w", err)
 	}
@@ -104,7 +96,7 @@ func Migrate(db *sql.DB) error {
 
 // CheckConnection проверяет соединение с базой данных
 func CheckConnection(db *sql.DB) error {
-	// Использовать db.Ping() для проверки
+
 	return db.Ping()
 }
 
@@ -120,7 +112,7 @@ func GetDSN(cfg Config) string {
 
 // Close закрывает соединение с базой данных
 func Close(db *sql.DB) error {
-	// Корректно закрыть соединение
+
 	if db != nil {
 		return db.Close()
 	}
@@ -129,7 +121,7 @@ func Close(db *sql.DB) error {
 
 // TestConnection выполняет тестовый запрос к БД
 func TestConnection(db *sql.DB) error {
-	// Выполнить простой запрос для проверки работы БД
+
 	var result int
 	err := db.QueryRow("SELECT 1").Scan(&result)
 	if err != nil {
