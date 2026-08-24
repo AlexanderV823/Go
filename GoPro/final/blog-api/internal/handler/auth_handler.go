@@ -1,11 +1,8 @@
 package handler
 
 import (
-	"blog-api/internal/model"
 	"blog-api/internal/service"
 	"context"
-	"encoding/json"
-	"errors"
 	"net/http"
 )
 
@@ -22,113 +19,52 @@ func NewAuthHandler(userService *service.UserService) *AuthHandler {
 // Register обрабатывает запрос на регистрацию нового пользователя
 // POST /api/register
 func (h *AuthHandler) Register(w http.ResponseWriter, r *http.Request) {
-	if r.Method != http.MethodPost {
-		writeError(w, "Method not allowed", http.StatusMethodNotAllowed)
-		return
-	}
+	// TODO: Реализовать обработку регистрации
+	// Шаги:
+	// 1. Проверить метод запроса (должен быть POST)
+	// 2. Декодировать JSON тело в UserCreateRequest
+	// 3. Вызвать userService.Register
+	// 4. Обработать ошибки (ErrUserAlreadyExists -> 409 Conflict)
+	// 5. Вернуть JSON ответ с токеном (201 Created)
 
-	var req model.UserCreateRequest
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		writeError(w, "Invalid request body", http.StatusBadRequest)
-		return
-	}
-
-	resp, err := h.userService.Register(r.Context(), &req)
-	if err != nil {
-		if errors.Is(err, service.ErrUserAlreadyExists) {
-			writeError(w, "User already exists", http.StatusConflict)
-			return
-		}
-		if errors.Is(err, service.ErrInvalidInput) {
-			writeError(w, err.Error(), http.StatusBadRequest)
-			return
-		}
-		writeError(w, "Failed to register user", http.StatusInternalServerError)
-		return
-	}
-
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(http.StatusCreated)
-	_ = json.NewEncoder(w).Encode(resp)
+	http.Error(w, "Not implemented", http.StatusNotImplemented)
 }
 
 // Login обрабатывает запрос на вход пользователя
 // POST /api/login
 func (h *AuthHandler) Login(w http.ResponseWriter, r *http.Request) {
-	if r.Method != http.MethodPost {
-		writeError(w, "Method not allowed", http.StatusMethodNotAllowed)
-		return
-	}
+	// TODO: Реализовать обработку входа
+	// Шаги:
+	// 1. Проверить метод запроса (должен быть POST)
+	// 2. Декодировать JSON тело в UserLoginRequest
+	// 3. Вызвать userService.Login
+	// 4. Обработать ошибки (ErrInvalidCredentials -> 401 Unauthorized)
+	// 5. Вернуть JSON ответ с токеном (200 OK)
 
-	var req model.UserLoginRequest
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		writeError(w, "Invalid request body", http.StatusBadRequest)
-		return
-	}
-
-	resp, err := h.userService.Login(r.Context(), &req)
-	if err != nil {
-		if errors.Is(err, service.ErrInvalidCredentials) {
-			writeError(w, "Invalid credentials", http.StatusUnauthorized)
-			return
-		}
-		if errors.Is(err, service.ErrInvalidInput) {
-			writeError(w, err.Error(), http.StatusBadRequest)
-			return
-		}
-		writeError(w, "Failed to login", http.StatusInternalServerError)
-		return
-	}
-
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(http.StatusOK)
-	_ = json.NewEncoder(w).Encode(resp)
+	http.Error(w, "Not implemented", http.StatusNotImplemented)
 }
 
-// GetProfile возвращает профиль текущего пользователя
-// GET /api/profile
+// GetProfile возвращает профиль текущего пользователя (опционально)
+// Этот метод не используется в эталонной реализации
 func (h *AuthHandler) GetProfile(w http.ResponseWriter, r *http.Request) {
-	if r.Method != http.MethodGet {
-		writeError(w, "Method not allowed", http.StatusMethodNotAllowed)
-		return
-	}
+	// TODO: Опционально - реализовать получение профиля
+	// Этот эндпоинт не обязателен для базовой реализации
 
-	userID, ok := getUserIDFromContext(r.Context())
-	if !ok {
-		writeError(w, "Unauthorized", http.StatusUnauthorized)
-		return
-	}
-
-	user, err := h.userService.GetByID(r.Context(), userID)
-	if err != nil {
-		if errors.Is(err, service.ErrUserNotFound) {
-			writeError(w, "User not found", http.StatusNotFound)
-			return
-		}
-		writeError(w, "Failed to get profile", http.StatusInternalServerError)
-		return
-	}
-
-	// Формируем безопасный ответ без хэша пароля
-	userResp := model.UserResponse{
-		ID:       user.ID,
-		Username: user.Username,
-		Email:    user.Email,
-	}
-
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(http.StatusOK)
-	_ = json.NewEncoder(w).Encode(userResp)
+	http.Error(w, "Not implemented", http.StatusNotImplemented)
 }
 
+// writeError отправляет JSON ответ с ошибкой
 func writeError(w http.ResponseWriter, message string, statusCode int) {
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(statusCode)
-	_ = json.NewEncoder(w).Encode(map[string]string{"error": message})
+	// TODO: Реализовать отправку ошибки в формате JSON
+	// Создать структуру ErrorResponse и отправить как JSON
+
+	http.Error(w, message, statusCode)
 }
 
 // getUserIDFromContext извлекает ID пользователя из контекста
 func getUserIDFromContext(ctx context.Context) (int, bool) {
-	userID, ok := ctx.Value("userID").(int)
-	return userID, ok
+	// TODO: Извлечь userID из контекста
+	// Ключ устанавливается в auth middleware
+
+	return 0, false
 }

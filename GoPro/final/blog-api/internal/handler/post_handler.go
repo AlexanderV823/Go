@@ -1,13 +1,8 @@
 package handler
 
 import (
-	"blog-api/internal/model"
 	"blog-api/internal/service"
-	"encoding/json"
-	"errors"
 	"net/http"
-	"strconv"
-	"strings"
 )
 
 type PostHandler struct {
@@ -22,252 +17,103 @@ func NewPostHandler(postService *service.PostService) *PostHandler {
 
 // Create обрабатывает создание нового поста
 // POST /api/posts
+// Требует аутентификации
 func (h *PostHandler) Create(w http.ResponseWriter, r *http.Request) {
-	if r.Method != http.MethodPost {
-		respondWithError(w, http.StatusMethodNotAllowed, "method not allowed")
-		return
-	}
+	// TODO: Реализовать создание поста
+	// Шаги:
+	// 1. Проверить метод запроса (должен быть POST)
+	// 2. Получить userID из контекста (установлен middleware)
+	// 3. Декодировать JSON тело в PostCreateRequest
+	// 4. Создать пост через postService.Create
+	// 5. Вернуть созданный пост как JSON (201 Created)
 
-	userID, ok := r.Context().Value("userID").(int)
-	if !ok {
-		respondWithError(w, http.StatusUnauthorized, "unauthorized")
-		return
-	}
-
-	var req model.PostCreateRequest
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		respondWithError(w, http.StatusBadRequest, "invalid json body")
-		return
-	}
-
-	post, err := h.postService.Create(r.Context(), userID, &req)
-	if err != nil {
-		if errors.Is(err, service.ErrInvalidInput) {
-			respondWithError(w, http.StatusBadRequest, err.Error())
-			return
-		}
-		respondWithError(w, http.StatusInternalServerError, "failed to create post")
-		return
-	}
-
-	respondWithJSON(w, http.StatusCreated, post)
+	http.Error(w, "Not implemented", http.StatusNotImplemented)
 }
 
 // GetByID возвращает пост по ID
 // GET /api/posts/{id}
+// Не требует аутентификации
 func (h *PostHandler) GetByID(w http.ResponseWriter, r *http.Request) {
-	if r.Method != http.MethodGet {
-		respondWithError(w, http.StatusMethodNotAllowed, "method not allowed")
-		return
-	}
+	// TODO: Реализовать получение поста по ID
+	// Шаги:
+	// 1. Проверить метод запроса (должен быть GET)
+	// 2. Извлечь ID из URL пути
+	// 3. Получить пост через postService.GetByID
+	// 4. Обработать ошибки (ErrPostNotFound -> 404)
+	// 5. Вернуть пост как JSON (200 OK)
 
-	idStr := extractIDFromPath(r.URL.Path, "/api/posts/")
-	id, err := strconv.Atoi(idStr)
-	if err != nil || id <= 0 {
-		respondWithError(w, http.StatusBadRequest, "invalid post id")
-		return
-	}
-
-	post, err := h.postService.GetByID(r.Context(), id)
-	if err != nil {
-		if errors.Is(err, service.ErrPostNotExists) {
-			respondWithError(w, http.StatusNotFound, "post not found")
-			return
-		}
-		respondWithError(w, http.StatusInternalServerError, "failed to get post")
-		return
-	}
-
-	respondWithJSON(w, http.StatusOK, post)
+	http.Error(w, "Not implemented", http.StatusNotImplemented)
 }
 
 // GetAll возвращает список постов с пагинацией
 // GET /api/posts?limit=10&offset=0
+// Не требует аутентификации
 func (h *PostHandler) GetAll(w http.ResponseWriter, r *http.Request) {
-	if r.Method != http.MethodGet {
-		respondWithError(w, http.StatusMethodNotAllowed, "method not allowed")
-		return
-	}
+	// TODO: Реализовать получение списка постов
+	// Шаги:
+	// 1. Проверить метод запроса (должен быть GET)
+	// 2. Извлечь параметры пагинации из query string
+	// 3. Получить посты через postService.GetAll
+	// 4. Создать ответ с метаданными пагинации
+	// 5. Вернуть список постов как JSON (200 OK)
 
-	limit := parseQueryInt(r, "limit", 10)
-	offset := parseQueryInt(r, "offset", 0)
-
-	posts, total, err := h.postService.GetAll(r.Context(), limit, offset)
-	if err != nil {
-		respondWithError(w, http.StatusInternalServerError, "failed to fetch posts")
-		return
-	}
-
-	// Формируем ответ с метаданными пагинации
-	response := map[string]interface{}{
-		"posts":  posts,
-		"total":  total,
-		"limit":  limit,
-		"offset": offset,
-	}
-
-	respondWithJSON(w, http.StatusOK, response)
+	http.Error(w, "Not implemented", http.StatusNotImplemented)
 }
 
 // Update обновляет пост
 // PUT /api/posts/{id}
+// Требует аутентификации, может обновить только автор
 func (h *PostHandler) Update(w http.ResponseWriter, r *http.Request) {
-	if r.Method != http.MethodPut {
-		respondWithError(w, http.StatusMethodNotAllowed, "method not allowed")
-		return
-	}
+	// TODO: Реализовать обновление поста
+	// Шаги:
+	// 1. Проверить метод запроса (должен быть PUT)
+	// 2. Получить userID из контекста
+	// 3. Извлечь ID поста из URL
+	// 4. Декодировать JSON тело в PostUpdateRequest
+	// 5. Обновить через postService.Update
+	// 6. Обработать ошибки (404 для не найден, 403 для чужого поста)
+	// 7. Вернуть обновленный пост как JSON (200 OK)
 
-	userID, ok := r.Context().Value("userID").(int)
-	if !ok {
-		respondWithError(w, http.StatusUnauthorized, "unauthorized")
-		return
-	}
-
-	idStr := extractIDFromPath(r.URL.Path, "/api/posts/")
-	id, err := strconv.Atoi(idStr)
-	if err != nil || id <= 0 {
-		respondWithError(w, http.StatusBadRequest, "invalid post id")
-		return
-	}
-
-	var req model.PostUpdateRequest
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		respondWithError(w, http.StatusBadRequest, "invalid json body")
-		return
-	}
-
-	post, err := h.postService.Update(r.Context(), id, userID, &req)
-	if err != nil {
-		if errors.Is(err, service.ErrPostNotExists) {
-			respondWithError(w, http.StatusNotFound, "post not found")
-			return
-		}
-		if errors.Is(err, service.ErrForbidden) {
-			respondWithError(w, http.StatusForbidden, "you are not the author of this post")
-			return
-		}
-		if errors.Is(err, service.ErrInvalidInput) {
-			respondWithError(w, http.StatusBadRequest, err.Error())
-			return
-		}
-		respondWithError(w, http.StatusInternalServerError, "failed to update post")
-		return
-	}
-
-	respondWithJSON(w, http.StatusOK, post)
+	http.Error(w, "Not implemented", http.StatusNotImplemented)
 }
 
 // Delete удаляет пост
 // DELETE /api/posts/{id}
+// Требует аутентификации, может удалить только автор
 func (h *PostHandler) Delete(w http.ResponseWriter, r *http.Request) {
-	if r.Method != http.MethodDelete {
-		respondWithError(w, http.StatusMethodNotAllowed, "method not allowed")
-		return
-	}
+	// TODO: Реализовать удаление поста
+	// Шаги:
+	// 1. Проверить метод запроса (должен быть DELETE)
+	// 2. Получить userID из контекста
+	// 3. Извлечь ID поста из URL
+	// 4. Удалить через postService.Delete
+	// 5. Обработать ошибки (404 для не найден, 403 для чужого поста)
+	// 6. Вернуть 204 No Content при успехе
 
-	userID, ok := r.Context().Value("userID").(int)
-	if !ok {
-		respondWithError(w, http.StatusUnauthorized, "unauthorized")
-		return
-	}
-
-	idStr := extractIDFromPath(r.URL.Path, "/api/posts/")
-	id, err := strconv.Atoi(idStr)
-	if err != nil || id <= 0 {
-		respondWithError(w, http.StatusBadRequest, "invalid post id")
-		return
-	}
-
-	err = h.postService.Delete(r.Context(), id, userID)
-	if err != nil {
-		if errors.Is(err, service.ErrPostNotExists) {
-			respondWithError(w, http.StatusNotFound, "post not found")
-			return
-		}
-		if errors.Is(err, service.ErrForbidden) {
-			respondWithError(w, http.StatusForbidden, "you are not the author of this post")
-			return
-		}
-		respondWithError(w, http.StatusInternalServerError, "failed to delete post")
-		return
-	}
-
-	w.WriteHeader(http.StatusNoContent)
+	http.Error(w, "Not implemented", http.StatusNotImplemented)
 }
 
 // GetByAuthor возвращает посты конкретного автора
 // GET /api/posts/author/{authorID}?limit=10&offset=0
+// Не требует аутентификации
 func (h *PostHandler) GetByAuthor(w http.ResponseWriter, r *http.Request) {
-	if r.Method != http.MethodGet {
-		respondWithError(w, http.StatusMethodNotAllowed, "method not allowed")
-		return
-	}
+	// TODO: Реализовать получение постов автора
+	// Шаги:
+	// 1. Проверить метод запроса (должен быть GET)
+	// 2. Извлечь ID автора из URL
+	// 3. Извлечь параметры пагинации из query string
+	// 4. Получить посты через postService.GetByAuthor
+	// 5. Создать ответ с метаданными и списком постов
+	// 6. Вернуть как JSON (200 OK)
 
-	idStr := extractIDFromPath(r.URL.Path, "/api/posts/author/")
-	authorID, err := strconv.Atoi(idStr)
-	if err != nil || authorID <= 0 {
-		respondWithError(w, http.StatusBadRequest, "invalid author id")
-		return
-	}
-
-	limit := parseQueryInt(r, "limit", 10)
-	offset := parseQueryInt(r, "offset", 0)
-
-	posts, total, err := h.postService.GetByAuthor(r.Context(), authorID, limit, offset)
-	if err != nil {
-		respondWithError(w, http.StatusInternalServerError, "failed to fetch author posts")
-		return
-	}
-
-	response := map[string]interface{}{
-		"posts":  posts,
-		"total":  total,
-		"limit":  limit,
-		"offset": offset,
-	}
-
-	respondWithJSON(w, http.StatusOK, response)
+	http.Error(w, "Not implemented", http.StatusNotImplemented)
 }
 
 // extractIDFromPath извлекает ID из пути URL
 func extractIDFromPath(path, prefix string) string {
-	if !strings.HasPrefix(path, prefix) {
-		return ""
-	}
-	// Отрезаем префикс и берем следующую часть пути до возможного слэша
-	idPart := strings.TrimPrefix(path, prefix)
-	if idx := strings.Index(idPart, "/"); idx != -1 {
-		idPart = idPart[:idx]
-	}
-	return idPart
-}
+	// TODO: Реализовать извлечение ID из пути
+	// Пример: path = "/api/posts/123", prefix = "/api/posts/"
+	// Должен вернуть "123"
 
-// Вспомогательные функции хендлера
-
-func respondWithJSON(w http.ResponseWriter, code int, payload interface{}) {
-	response, err := json.Marshal(payload)
-	if err != nil {
-		w.WriteHeader(http.StatusInternalServerError)
-		_, _ = w.Write([]byte(`{"error":"failed to marshal response"}`))
-		return
-	}
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(code)
-	_, _ = w.Write(response)
-}
-
-func respondWithError(w http.ResponseWriter, code int, message string) {
-	respondWithJSON(w, code, map[string]string{"error": message})
-}
-
-func parseQueryInt(r *http.Request, key string, defaultVal int) int {
-	valStr := r.URL.Query().Get(key)
-	if valStr == "" {
-		return defaultVal
-	}
-	val, err := strconv.Atoi(valStr)
-	if err != nil {
-		return defaultVal
-	}
-	return val
+	return ""
 }

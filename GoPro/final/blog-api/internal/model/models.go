@@ -64,67 +64,31 @@ type CommentCreateRequest struct {
 	Content string `json:"content" validate:"required,min=1,max=1000"`
 }
 
+// TODO: Добавить следующие структуры и методы:
+
 // UserResponse - структура для ответа с данными пользователя (без пароля)
-type UserResponse struct {
-	ID        int       `json:"id"`
-	Username  string    `json:"username"`
-	Email     string    `json:"email"`
-	CreatedAt time.Time `json:"created_at"`
-}
+// Поля: ID, Username, Email, CreatedAt
 
 // TokenResponse - структура для ответа с JWT токеном
-type TokenResponse struct {
-	Token     string       `json:"token"`
-	ExpiresAt time.Time    `json:"expires_at"`
-	User      UserResponse `json:"user"`
-}
+// Поля: Token (string), ExpiresAt (time.Time), User (UserResponse)
 
 // PostResponse - структура для ответа с данными поста
-type PostResponse struct {
-	ID        int          `json:"id"`
-	Title     string       `json:"title"`
-	Content   string       `json:"content"`
-	Author    UserResponse `json:"author"`
-	CreatedAt time.Time    `json:"created_at"`
-	UpdatedAt time.Time    `json:"updated_at"`
-}
+// Поля: ID, Title, Content, Author (UserResponse), CreatedAt, UpdatedAt
 
 // CommentResponse - структура для ответа с данными комментария
-type CommentResponse struct {
-	ID        int          `json:"id"`
-	Content   string       `json:"content"`
-	PostID    int          `json:"post_id"`
-	Author    UserResponse `json:"author"`
-	CreatedAt time.Time    `json:"created_at"`
-	UpdatedAt time.Time    `json:"updated_at"`
-}
+// Поля: ID, Content, PostID, Author (UserResponse), CreatedAt, UpdatedAt
 
-// ToResponse преобразует User в UserResponse
-func (u User) ToResponse() UserResponse {
-	return UserResponse{
-		ID:        u.ID,
-		Username:  u.Username,
-		Email:     u.Email,
-		CreatedAt: u.CreatedAt,
-	}
-}
+// TODO: Реализовать методы для моделей:
 
-// CanBeEditedBy проверяет, может ли пользователь редактировать пост
-func (p Post) CanBeEditedBy(userID int) bool {
-	return p.AuthorID == userID
-}
+// User.ToResponse() UserResponse - преобразует User в UserResponse
 
-// CanBeDeletedBy проверяет, может ли пользователь удалить пост
-func (p Post) CanBeDeletedBy(userID int) bool {
-	return p.AuthorID == userID
-}
+// Post.CanBeEditedBy(userID int) bool - проверяет, может ли пользователь редактировать пост
 
-// CanBeEditedBy проверяет, может ли пользователь adolescent редактировать комментарий
-func (c Comment) CanBeEditedBy(userID int) bool {
-	return c.AuthorID == userID
-}
+// Post.CanBeDeletedBy(userID int) bool - проверяет, может ли пользователь удалить пост
 
-// CanBeDeletedBy проверяет, может ли пользователь удалить комментарий
-func (c Comment) CanBeDeletedBy(userID int) bool {
-	return c.AuthorID == userID
-}
+// Comment.CanBeEditedBy(userID int) bool - проверяет, может ли пользователь редактировать комментарий
+
+// Comment.CanBeDeletedBy(userID int) bool - проверяет, может ли пользователь удалить комментарий
+
+// HINT: Пользователь может редактировать/удалять только свои посты и комментарии
+// (сравните AuthorID с переданным userID)

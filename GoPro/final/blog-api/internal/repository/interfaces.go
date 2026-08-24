@@ -25,11 +25,7 @@ type UserRepository interface {
 	// ExistsByUsername проверяет существование пользователя по username
 	ExistsByUsername(ctx context.Context, username string) (bool, error)
 
-	// Update обновляет данные пользователя
-	Update(ctx context.Context, user *model.User) error
-
-	// Delete удаляет пользователя по ID
-	Delete(ctx context.Context, id int) error
+	// TODO: Добавить другие методы при необходимости
 }
 
 // PostRepository определяет интерфейс для работы с постами
@@ -41,6 +37,8 @@ type PostRepository interface {
 	GetByID(ctx context.Context, id int) (*model.Post, error)
 
 	// GetAll получает все посты с пагинацией
+	// limit - количество записей на странице
+	// offset - смещение от начала
 	GetAll(ctx context.Context, limit, offset int) ([]*model.Post, error)
 
 	// GetTotalCount получает общее количество постов
@@ -55,11 +53,7 @@ type PostRepository interface {
 	// Exists проверяет существование поста по ID
 	Exists(ctx context.Context, id int) (bool, error)
 
-	// GetByAuthorID получает посты конкретного автора с пагинацией
-	GetByAuthorID(ctx context.Context, authorID int, limit, offset int) ([]*model.Post, error)
-
-	// GetCountByAuthorID получает количество постов конкретного автора
-	GetCountByAuthorID(ctx context.Context, authorID int) (int, error)
+	// TODO: Добавить методы для получения постов конкретного автора
 }
 
 // CommentRepository определяет интерфейс для работы с комментариями
@@ -76,15 +70,11 @@ type CommentRepository interface {
 	// GetCountByPostID получает количество комментариев к посту
 	GetCountByPostID(ctx context.Context, postID int) (int, error)
 
-	// Update обновляет текст комментария
-	Update(ctx context.Context, comment *model.Comment) error
-
-	// Delete удаляет комментарий по ID
-	Delete(ctx context.Context, id int) error
-
-	// GetByAuthorID получает комментарии конкретного автора с пагинацией
-	GetByAuthorID(ctx context.Context, authorID int, limit, offset int) ([]*model.Comment, error)
-
-	// GetCountByAuthorID получает количество комментариев конкретного автора
-	GetCountByAuthorID(ctx context.Context, authorID int) (int, error)
+	// TODO: Реализовать методы Update и Delete при необходимости
 }
+
+// TODO: При реализации репозиториев учитывайте следующее:
+// 1. Используйте параметризованные запросы для защиты от SQL инъекций
+// 2. Обрабатывайте ошибку sql.ErrNoRows и возвращайте понятные ошибки типа ErrUserNotFound
+// 3. Устанавливайте created_at и updated_at при создании/обновлении записей
+// 4. Используйте транзакции где это необходимо

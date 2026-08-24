@@ -6,7 +6,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"time"
 )
 
 var (
@@ -33,204 +32,88 @@ func NewCommentService(
 }
 
 func (s *CommentService) Create(ctx context.Context, userID int, req *model.CommentCreateRequest) (*model.Comment, error) {
-	if err := validateCommentCreateRequest(req); err != nil {
-		return nil, fmt.Errorf("%w: %v", ErrInvalidInput, err)
-	}
+	// TODO: Создать новый комментарий
+	// Шаги:
+	// 1. Валидация данных (content не пустой и <= 1000 символов)
+	// 2. Проверить что пост существует
+	// 3. Создать модель комментария с userID как автором
+	// 4. Сохранить через репозиторий
+	// 5. Опционально: обогатить ответ информацией об авторе
+	// 6. Вернуть созданный комментарий
 
-	exists, err := s.postRepo.Exists(ctx, req.PostID)
-	if err != nil {
-		return nil, fmt.Errorf("check post existence: %w", err)
-	}
-	if !exists {
-		return nil, ErrPostNotExists
-	}
-
-	comment := &model.Comment{
-		PostID:    req.PostID,
-		AuthorID:  userID,
-		Content:   req.Content,
-		CreatedAt: time.Now(),
-		UpdatedAt: time.Now(),
-	}
-
-	if err := s.commentRepo.Create(ctx, comment); err != nil {
-		return nil, fmt.Errorf("create comment in repo: %w", err)
-	}
-
-	author, err := s.userRepo.GetByID(ctx, userID)
-	if err == nil && author != nil {
-		comment.Author = author
-	}
-
-	return comment, nil
+	return nil, fmt.Errorf("not implemented")
 }
 
 func (s *CommentService) GetByID(ctx context.Context, id int) (*model.Comment, error) {
-	comment, err := s.commentRepo.GetByID(ctx, id)
-	if err != nil {
-		if errors.Is(err, repository.ErrCommentNotFound) {
-			return nil, ErrCommentNotFound
-		}
-		return nil, fmt.Errorf("get comment by id: %w", err)
-	}
+	// TODO: Получить комментарий по ID
+	// Шаги:
+	// 1. Получить комментарий через репозиторий
+	// 2. Опционально: добавить информацию об авторе
+	// 3. Вернуть результат или ErrCommentNotFound
 
-	author, err := s.userRepo.GetByID(ctx, comment.AuthorID)
-	if err == nil && author != nil {
-		comment.Author = author
-	}
-
-	return comment, nil
+	return nil, fmt.Errorf("not implemented")
 }
 
 func (s *CommentService) GetByPost(ctx context.Context, postID int, limit, offset int) ([]*model.Comment, int, error) {
-	if limit <= 0 {
-		limit = 20
-	}
-	if limit > 100 {
-		limit = 100
-	}
-	if offset < 0 {
-		offset = 0
-	}
+	// TODO: Получить комментарии к посту с пагинацией
+	// Шаги:
+	// 1. Валидировать параметры пагинации (limit по умолчанию 20, максимум 100)
+	// 2. Опционально: проверить существование поста
+	// 3. Получить комментарии через репозиторий
+	// 4. Получить общее количество для пагинации
+	// 5. Опционально: обогатить данные информацией об авторах
+	// 6. Вернуть комментарии и общее количество
 
-	exists, err := s.postRepo.Exists(ctx, postID)
-	if err != nil {
-		return nil, 0, fmt.Errorf("check post existence: %w", err)
-	}
-	if !exists {
-		return nil, 0, ErrPostNotExists
-	}
-
-	comments, err := s.commentRepo.GetByPostID(ctx, postID, limit, offset)
-	if err != nil {
-		return nil, 0, fmt.Errorf("get comments by post id: %w", err)
-	}
-
-	total, err := s.commentRepo.GetCountByPostID(ctx, postID)
-	if err != nil {
-		return nil, 0, fmt.Errorf("get comments count by post id: %w", err)
-	}
-
-	for _, comment := range comments {
-		author, err := s.userRepo.GetByID(ctx, comment.AuthorID)
-		if err == nil && author != nil {
-			comment.Author = author
-		}
-	}
-
-	return comments, total, nil
+	return nil, 0, fmt.Errorf("not implemented")
 }
 
 func (s *CommentService) Update(ctx context.Context, id int, userID int, req *model.CommentUpdateRequest) (*model.Comment, error) {
-	if err := validateCommentUpdateRequest(req); err != nil {
-		return nil, fmt.Errorf("%w: %v", ErrInvalidInput, err)
-	}
+	// TODO: Обновить комментарий
+	// Шаги:
+	// 1. Найти существующий комментарий
+	// 2. Проверить что userID является автором (иначе ErrForbidden)
+	// 3. Валидировать новый content
+	// 4. Обновить content и временную метку
+	// 5. Сохранить через репозиторий
+	// 6. Опционально: добавить информацию об авторе
+	// 7. Вернуть обновленный комментарий
 
-	comment, err := s.commentRepo.GetByID(ctx, id)
-	if err != nil {
-		if errors.Is(err, repository.ErrCommentNotFound) {
-			return nil, ErrCommentNotFound
-		}
-		return nil, fmt.Errorf("get comment for update: %w", err)
-	}
-
-	if comment.AuthorID != userID {
-		return nil, ErrForbidden
-	}
-
-	comment.Content = req.Content
-	comment.UpdatedAt = time.Now()
-
-	if err := s.commentRepo.Update(ctx, comment); err != nil {
-		return nil, fmt.Errorf("update comment in repo: %w", err)
-	}
-
-	author, err := s.userRepo.GetByID(ctx, userID)
-	if err == nil && author != nil {
-		comment.Author = author
-	}
-
-	return comment, nil
+	return nil, fmt.Errorf("not implemented")
 }
 
 func (s *CommentService) Delete(ctx context.Context, id int, userID int) error {
-	comment, err := s.commentRepo.GetByID(ctx, id)
-	if err != nil {
-		if errors.Is(err, repository.ErrCommentNotFound) {
-			return ErrCommentNotFound
-		}
-		return fmt.Errorf("get comment for delete: %w", err)
-	}
+	// TODO: Удалить комментарий
+	// Шаги:
+	// 1. Найти комментарий и проверить существование
+	// 2. Проверить что userID является автором
+	// 3. Удалить через репозиторий
+	// 4. Вернуть соответствующую ошибку при неудаче
 
-	if comment.AuthorID != userID {
-		return ErrForbidden
-	}
-
-	if err := s.commentRepo.Delete(ctx, id); err != nil {
-		return fmt.Errorf("delete comment from repo: %w", err)
-	}
-
-	return nil
+	return fmt.Errorf("not implemented")
 }
 
 func (s *CommentService) GetByAuthor(ctx context.Context, authorID int, limit, offset int) ([]*model.Comment, int, error) {
-	if limit <= 0 {
-		limit = 20
-	}
-	if limit > 100 {
-		limit = 100
-	}
-	if offset < 0 {
-		offset = 0
-	}
+	// TODO: Получить комментарии конкретного автора
+	// Шаги:
+	// 1. Валидировать параметры пагинации
+	// 2. Получить комментарии автора через репозиторий
+	// 3. Получить общее количество комментариев автора
+	// 4. Опционально: добавить информацию об авторе
+	// 5. Вернуть результат с общим количеством
 
-	comments, err := s.commentRepo.GetByAuthorID(ctx, authorID, limit, offset)
-	if err != nil {
-		return nil, 0, fmt.Errorf("get comments by author id: %w", err)
-	}
-
-	total, err := s.commentRepo.GetCountByAuthorID(ctx, authorID)
-	if err != nil {
-		return nil, 0, fmt.Errorf("get comments count by author id: %w", err)
-	}
-
-	author, err := s.userRepo.GetByID(ctx, authorID)
-	if err == nil && author != nil {
-		for _, comment := range comments {
-			comment.Author = author
-		}
-	}
-
-	return comments, total, nil
+	return nil, 0, fmt.Errorf("not implemented")
 }
 
 // validateCommentCreateRequest проверяет корректность данных для создания комментария
 func validateCommentCreateRequest(req *model.CommentCreateRequest) error {
-	if req == nil {
-		return errors.New("request body is empty")
-	}
-	if req.PostID <= 0 {
-		return errors.New("post_id must be greater than 0")
-	}
-	if req.Content == "" {
-		return errors.New("content cannot be empty")
-	}
-	if len([]rune(req.Content)) > 1000 {
-		return errors.New("content cannot exceed 1000 characters")
-	}
+	// TODO: Реализовать валидацию content и PostID
+
 	return nil
 }
 
 // validateCommentUpdateRequest проверяет корректность данных для обновления комментария
 func validateCommentUpdateRequest(req *model.CommentUpdateRequest) error {
-	if req == nil {
-		return errors.New("request body is empty")
-	}
-	if req.Content == "" {
-		return errors.New("content cannot be empty")
-	}
-	if len([]rune(req.Content)) > 1000 {
-		return errors.New("content cannot exceed 1000 characters")
-	}
+	// TODO: Реализовать валидацию content
+
 	return nil
 }
