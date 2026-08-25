@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+	"io"
 	"log"
 	"net/http"
 	"os"
@@ -22,8 +23,22 @@ import (
 )
 
 func main() {
-
 	_ = pq.Driver{}
+
+	// Инициализируем вывод логов параллельно в файл и консоль
+	logFile, err := os.OpenFile("api.log", os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0666)
+	if err != nil {
+		log.Fatalf("Failed to open log file: %v", err)
+	}
+	defer logFile.Close()
+
+	// Объединяем терминал и файл. Перенастраиваем стандартный логгер Go
+	logOutput := io.MultiWriter(os.Stdout, logFile)
+	log.SetOutput(logOutput)
+	log.SetFlags(log.LstdFlags)
+
+	// Создаем выделенный логгер для слоя Middleware
+	loggerInstance := log.New(logOutput, "", log.LstdFlags)
 
 	// Загружаем конфигурацию из .env файла
 	if err := godotenv.Load(); err != nil {
@@ -77,8 +92,7 @@ func main() {
 	// Инициализируем Middleware авторизации
 	authMiddleware := middleware.NewAuthMiddleware(jwtManager)
 
-	// Инициализируем кастомный слой инфраструктурных Middleware
-	loggerInstance := log.New(os.Stdout, "", log.LstdFlags)
+	// Инициализируем кастомный слой инфраструктурных Middleware с настроенным логгером
 	customMiddleware := middleware.NewLoggingMiddleware(loggerInstance)
 
 	// Настраиваем маршруты роутера
@@ -163,11 +177,9 @@ type Config struct {
 // loadConfig загружает конфигурацию из переменных окружения
 func loadConfig() *Config {
 	return &Config{
-		// Второстепенные опции, где допустимы дефолтные значения
 		DBSSLMode:       getEnv("DB_SSL_MODE", "disable"),
 		CacheTTLMinutes: getEnvAsInt("CACHE_TTL_MINUTES", 15),
 
-		// КРИТИЧЕСКИЕ ПАРАМЕТРЫ: Без дефолтов в коде. Обязательны в .env
 		ServerHost:      getEnvRequired("SERVER_HOST"),
 		ServerPort:      getEnvAsIntRequired("SERVER_PORT"),
 
