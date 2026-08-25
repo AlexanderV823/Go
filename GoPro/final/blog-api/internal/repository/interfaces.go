@@ -24,8 +24,6 @@ type UserRepository interface {
 
 	// ExistsByUsername проверяет существование пользователя по username
 	ExistsByUsername(ctx context.Context, username string) (bool, error)
-
-	// TODO: Добавить другие методы при необходимости
 }
 
 // PostRepository определяет интерфейс для работы с постами
@@ -37,8 +35,6 @@ type PostRepository interface {
 	GetByID(ctx context.Context, id int) (*model.Post, error)
 
 	// GetAll получает все посты с пагинацией
-	// limit - количество записей на странице
-	// offset - смещение от начала
 	GetAll(ctx context.Context, limit, offset int) ([]*model.Post, error)
 
 	// GetTotalCount получает общее количество постов
@@ -52,8 +48,6 @@ type PostRepository interface {
 
 	// Exists проверяет существование поста по ID
 	Exists(ctx context.Context, id int) (bool, error)
-
-	// TODO: Добавить методы для получения постов конкретного автора
 }
 
 // CommentRepository определяет интерфейс для работы с комментариями
@@ -70,11 +64,9 @@ type CommentRepository interface {
 	// GetCountByPostID получает количество комментариев к посту
 	GetCountByPostID(ctx context.Context, postID int) (int, error)
 
-	// TODO: Реализовать методы Update и Delete при необходимости
-}
+	// Update обновляет содержание комментария
+	Update(ctx context.Context, comment *model.Comment) error
 
-// TODO: При реализации репозиториев учитывайте следующее:
-// 1. Используйте параметризованные запросы для защиты от SQL инъекций
-// 2. Обрабатывайте ошибку sql.ErrNoRows и возвращайте понятные ошибки типа ErrUserNotFound
-// 3. Устанавливайте created_at и updated_at при создании/обновлении записей
-// 4. Используйте транзакции где это необходимо
+	// Delete удаляет комментарий по ID
+	Delete(ctx context.Context, id int) error
+}

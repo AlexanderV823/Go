@@ -1,10 +1,20 @@
 package main
 
 import (
+	"context"
+	"database/sql"
+	"fmt"
 	"log"
 	"net/http"
 	"os"
 	"strconv"
+	"time"
+
+	"blog-api/internal/handler"
+	"blog-api/internal/middleware"
+	"blog-api/internal/repository"
+	"blog-api/internal/service"
+	"blog-api/pkg/auth"
 
 	"github.com/go-chi/chi/v5"
 	"github.com/joho/godotenv"
@@ -16,58 +26,112 @@ func main() {
 		log.Printf("Warning: .env file not found, using environment variables")
 	}
 
-	// TODO: Загрузить конфигурацию из переменных окружения
-	// cfg := loadConfig()
+	// Загружаем конфигурацию (секреты проверяются на обязательное наличие)
+	cfg := loadConfig()
 
-	// TODO: Подключиться к базе данных
-	// - Создать database.Config из параметров конфигурации
-	// - Вызвать database.NewPostgresDB
-	// - Обработать ошибки подключения
-	// - Не забыть defer db.Close()
+	// Подключаемся к базе данных PostgreSQL
+	dsn := fmt.Sprintf("host=%s port=%d user=%s password=%s dbname=%s sslmode=%s",
+		cfg.DBHost, cfg.DBPort, cfg.DBUser, cfg.DBPassword, cfg.DBName, cfg.DBSSLMode)
 
-	// TODO: Выполнить миграции базы данных
-	// - Вызвать database.Migrate(db)
+	db, err := sql.Open("postgres", dsn)
+	if err != nil {
+		log.Fatalf("Failed to open database connection: %v", err)
+	}
+	defer db.Close()
 
-	// TODO: Инициализировать JWT менеджер
-	// - Создать jwtManager через auth.NewJWTManager
+	// Настройка пула соединений
+	db.SetMaxOpenConns(25)
+	db.SetMaxIdleConns(25)
+	db.SetConnMaxLifetime(5 * time.Minute)
 
-	// TODO: Создать слои приложения
-	// 1. Репозитории (передать db)
-	// 2. Сервисы (передать репозитории и jwtManager)
-	// 3. Хендлеры (передать сервисы)
-	// 4. Middleware (передать необходимые зависимости)
+	// Проверяем соединение с БД
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	if err := db.PingContext(ctx); err != nil {
+		log.Fatalf("Failed to ping database: %v", err)
+	}
+	log.Println("Successfully connected to the database")
 
-	// Настраиваем маршруты
+	// Инициализируем JWT менеджер
+	jwtManager := auth.NewJWTManager(cfg.JWTSecret, cfg.JWTExpiryHours)
+
+	// Инициализируем слой репозиториев (Repository)
+	userRepo := repository.NewUserRepo(db)
+	postRepo := repository.NewPostRepo(db)
+	commentRepo := repository.NewCommentRepo(db)
+
+	// Инициализируем слой бизнес-логики (Service)
+	userService := service.NewUserService(userRepo, jwtManager)
+	postService := service.NewPostService(postRepo, userRepo)
+	commentService := service.NewCommentService(commentRepo, postRepo, userRepo)
+
+	// Инициализируем слой обработчиков (Handler)
+	userHandler := handler.NewAuthHandler(userService)
+	postHandler := handler.NewPostHandler(postService)
+	commentHandler := handler.NewCommentHandler(commentService)
+
+	// Инициализируем Middleware авторизации
+	authMiddleware := middleware.NewAuthMiddleware(jwtManager)
+
+	// Инициализируем кастомный слой инфраструктурных Middleware
+	loggerInstance := log.New(os.Stdout, "", log.LstdFlags)
+	customMiddleware := middleware.NewLoggingMiddleware(loggerInstance)
+
+	// Настраиваем маршруты роутера
 	router := chi.NewRouter()
 
-	// TODO: Настроить middleware
-	// - Добавить глобальные middleware (logging, recovery, CORS)
+	// Настраиваем кастомные глобальные middleware в строгой последовательности
+	router.Use(customMiddleware.Recovery)                     // 1. Перехват паник
+	router.Use(customMiddleware.RequestID)                    // 2. Трассировка (Request ID)
+	router.Use(customMiddleware.CORS)                         // 3. Обработка CORS заголовков и OPTIONS
+	router.Use(customMiddleware.RateLimiter(100, time.Minute)) // 4. Защита от DDoS
+	router.Use(customMiddleware.Logger)                       // 5. Логирование запросов
 
-	// TODO: Настроить маршруты
-	// Публичные эндпоинты:
-	// - POST /api/register
-	// - POST /api/login
-	// - GET /api/posts
-	// - GET /api/posts/{id}
-	// - GET /api/posts/{id}/comments
-	//
-	// Защищенные эндпоинты (требуют JWT):
-	// - POST /api/posts
-	// - PUT /api/posts/{id}
-	// - DELETE /api/posts/{id}
-	// - POST /api/posts/{id}/comments
+	// Роуты API
+	router.Route("/api", func(r chi.Router) {
+		// Публичные эндпоинты
+		r.Post("/register", userHandler.Register)
+		r.Post("/login", userHandler.Login)
 
-	// Health check эндпоинт
-	router.Get("/api/health", func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("Content-Type", "application/json")
-		w.WriteHeader(http.StatusOK)
-		w.Write([]byte(`{"status":"ok","service":"blog-api"}`))
+		r.Get("/posts", postHandler.GetAll)
+		r.Get("/posts/{id}", postHandler.GetByID)
+		r.Get("/posts/{id}/comments", commentHandler.GetByPost)
+
+		// Защищенные эндпоинты (требуют JWT)
+		r.Group(func(protected chi.Router) {
+			protected.Use(authMiddleware.RequireAuth)
+
+			protected.Post("/posts", postHandler.Create)
+			protected.Put("/posts/{id}", postHandler.Update)
+			protected.Delete("/posts/{id}", postHandler.Delete)
+
+			protected.Post("/posts/{id}/comments", commentHandler.CreateComment)
+			protected.Put("/comments/{id}", commentHandler.Update)
+			protected.Delete("/comments/{id}", commentHandler.Delete)
+		})
+
+		// Health check эндпоинт
+		r.Get("/health", func(w http.ResponseWriter, r *http.Request) {
+			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(http.StatusOK)
+			w.Write([]byte(`{"status":"ok","service":"blog-api"}`))
+		})
 	})
 
-	// TODO: Запустить HTTP сервер
-	// - Сформировать адрес из конфигурации
-	// - Вывести информацию о запуске
-	// - Запустить сервер и обработать ошибки
+	// Запуск HTTP сервера
+	serverAddr := fmt.Sprintf("%s:%d", cfg.ServerHost, cfg.ServerPort)
+	log.Printf("Starting HTTP server on %s", serverAddr)
+
+	server := &http.Server{
+		Addr:         serverAddr,
+		Handler:      router,
+		ReadTimeout:  10 * time.Second,
+		WriteTimeout: 10 * time.Second,
+	}
+
+	if err := server.ListenAndServe(); err != nil && err != http.ErrServerClosed {
+		log.Fatalf("HTTP server failed to start: %v", err)
+	}
 }
 
 // Config представляет конфигурацию приложения
@@ -94,11 +158,22 @@ type Config struct {
 
 // loadConfig загружает конфигурацию из переменных окружения
 func loadConfig() *Config {
-	// TODO: Реализовать загрузку всех параметров конфигурации
-	// Использовать вспомогательные функции getEnv и getEnvAsInt
-	// Установить разумные значения по умолчанию
+	return &Config{
+		DBSSLMode:       getEnv("DB_SSL_MODE", "disable"),
+		CacheTTLMinutes: getEnvAsInt("CACHE_TTL_MINUTES", 15),
 
-	return nil // Заменить на правильную реализацию
+		ServerHost:      getEnvRequired("SERVER_HOST"),
+		ServerPort:      getEnvAsIntRequired("SERVER_PORT"),
+
+		DBHost:          getEnvRequired("DB_HOST"),
+		DBPort:          getEnvAsIntRequired("DB_PORT"),
+		DBName:          getEnvRequired("DB_NAME"),
+		DBUser:          getEnvRequired("DB_USER"),
+		DBPassword:      getEnvRequired("DB_PASSWORD"),
+
+		JWTSecret:       getEnvRequired("JWT_SECRET"),
+		JWTExpiryHours:  getEnvAsIntRequired("JWT_EXPIRY_HOURS"),
+	}
 }
 
 // getEnv получает значение переменной окружения или возвращает значение по умолчанию
@@ -109,6 +184,15 @@ func getEnv(key, defaultValue string) string {
 	return defaultValue
 }
 
+// getEnvRequired принудительно требует наличие переменной окружения, иначе аварийно завершает работу
+func getEnvRequired(key string) string {
+	value := os.Getenv(key)
+	if value == "" {
+		log.Fatalf("Critical environment variable missing: %s. Please check your .env file.", key)
+	}
+	return value
+}
+
 // getEnvAsInt получает значение переменной окружения как int или возвращает значение по умолчанию
 func getEnvAsInt(key string, defaultValue int) int {
 	valueStr := os.Getenv(key)
@@ -116,4 +200,17 @@ func getEnvAsInt(key string, defaultValue int) int {
 		return value
 	}
 	return defaultValue
+}
+
+// getEnvAsIntRequired принудительно требует числовую переменную, иначе завершает работу
+func getEnvAsIntRequired(key string) int {
+	valueStr := os.Getenv(key)
+	if valueStr == "" {
+		log.Fatalf("Critical environment variable missing: %s", key)
+	}
+	value, err := strconv.Atoi(valueStr)
+	if err != nil {
+		log.Fatalf("Invalid integer format for environment variable %s: %v", key, err)
+	}
+	return value
 }

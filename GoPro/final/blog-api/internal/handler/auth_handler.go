@@ -1,8 +1,11 @@
 package handler
 
 import (
+	"blog-api/internal/model"
 	"blog-api/internal/service"
 	"context"
+	"encoding/json"
+	"errors"
 	"net/http"
 )
 
@@ -16,55 +19,88 @@ func NewAuthHandler(userService *service.UserService) *AuthHandler {
 	}
 }
 
+type ErrorResponse struct {
+	Error string `json:"error"`
+}
+
 // Register обрабатывает запрос на регистрацию нового пользователя
 // POST /api/register
 func (h *AuthHandler) Register(w http.ResponseWriter, r *http.Request) {
-	// TODO: Реализовать обработку регистрации
-	// Шаги:
-	// 1. Проверить метод запроса (должен быть POST)
-	// 2. Декодировать JSON тело в UserCreateRequest
-	// 3. Вызвать userService.Register
-	// 4. Обработать ошибки (ErrUserAlreadyExists -> 409 Conflict)
-	// 5. Вернуть JSON ответ с токеном (201 Created)
+	if r.Method != http.MethodPost {
+		writeError(w, "Method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
 
-	http.Error(w, "Not implemented", http.StatusNotImplemented)
+	var req model.UserCreateRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		writeError(w, "Invalid body architecture", http.StatusBadRequest)
+		return
+	}
+
+	res, err := h.userService.Register(r.Context(), &req)
+	if err != nil {
+		if errors.Is(err, service.ErrUserAlreadyExists) {
+			writeError(w, err.Error(), http.StatusConflict)
+			return
+		}
+		writeError(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusCreated)
+	json.NewEncoder(w).Encode(res)
 }
 
 // Login обрабатывает запрос на вход пользователя
 // POST /api/login
 func (h *AuthHandler) Login(w http.ResponseWriter, r *http.Request) {
-	// TODO: Реализовать обработку входа
-	// Шаги:
-	// 1. Проверить метод запроса (должен быть POST)
-	// 2. Декодировать JSON тело в UserLoginRequest
-	// 3. Вызвать userService.Login
-	// 4. Обработать ошибки (ErrInvalidCredentials -> 401 Unauthorized)
-	// 5. Вернуть JSON ответ с токеном (200 OK)
+	if r.Method != http.MethodPost {
+		writeError(w, "Method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
 
-	http.Error(w, "Not implemented", http.StatusNotImplemented)
+	var req model.UserLoginRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		writeError(w, "Invalid dynamic parameters", http.StatusBadRequest)
+		return
+	}
+
+	res, err := h.userService.Login(r.Context(), &req)
+	if err != nil {
+		if errors.Is(err, service.ErrInvalidCredentials) {
+			writeError(w, err.Error(), http.StatusUnauthorized)
+			return
+		}
+		writeError(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+	json.NewEncoder(w).Encode(res)
 }
 
-// GetProfile возвращает профиль текущего пользователя (опционально)
-// Этот метод не используется в эталонной реализации
+// GetProfile возвращает профиль текущего пользователя
 func (h *AuthHandler) GetProfile(w http.ResponseWriter, r *http.Request) {
-	// TODO: Опционально - реализовать получение профиля
-	// Этот эндпоинт не обязателен для базовой реализации
-
-	http.Error(w, "Not implemented", http.StatusNotImplemented)
+	http.Error(w, "Endpoint legacy context", http.StatusNotImplemented)
 }
 
 // writeError отправляет JSON ответ с ошибкой
 func writeError(w http.ResponseWriter, message string, statusCode int) {
-	// TODO: Реализовать отправку ошибки в формате JSON
-	// Создать структуру ErrorResponse и отправить как JSON
-
-	http.Error(w, message, statusCode)
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(statusCode)
+	json.NewEncoder(w).Encode(ErrorResponse{Error: message})
 }
 
 // getUserIDFromContext извлекает ID пользователя из контекста
 func getUserIDFromContext(ctx context.Context) (int, bool) {
-	// TODO: Извлечь userID из контекста
-	// Ключ устанавливается в auth middleware
-
+	// Эта вспомогательная функция дублирует функционал из middleware
+	// Ключ берется из внутреннего контекста
+	if val := ctx.Value("userID"); val != nil {
+		if id, ok := val.(int); ok {
+			return id, true
+		}
+	}
 	return 0, false
 }

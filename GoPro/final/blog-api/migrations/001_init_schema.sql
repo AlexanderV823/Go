@@ -1,45 +1,50 @@
 -- Миграция для создания начальной схемы базы данных
--- TODO: Реализуйте создание таблиц для блог-платформы
 
 -- Таблица пользователей
--- TODO: Создайте таблицу users со следующими полями:
--- - id (serial, primary key)
--- - username (varchar(50), unique, not null)
--- - email (varchar(255), unique, not null)
--- - password (varchar(255), not null) - для хешированного пароля
--- - created_at (timestamp, not null)
--- - updated_at (timestamp, not null)
-
--- Пример структуры:
--- CREATE TABLE IF NOT EXISTS users (
---     ...ваши поля здесь...
--- );
+-- Создаем таблицу users со всеми необходимыми полями и ограничениями
+CREATE TABLE IF NOT EXISTS users (
+    id SERIAL PRIMARY KEY,
+    username VARCHAR(50) NOT NULL UNIQUE,
+    email VARCHAR(255) NOT NULL UNIQUE,
+    password VARCHAR(255) NOT NULL,
+    created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
 
 -- Таблица постов
--- TODO: Создайте таблицу posts со следующими полями:
--- - id (serial, primary key)
--- - title (varchar(200), not null)
--- - content (text, not null)
--- - author_id (integer, foreign key на users.id)
--- - created_at (timestamp, not null)
--- - updated_at (timestamp, not null)
+-- Создаем таблицу posts с внешним ключом на таблицу пользователей
+CREATE TABLE IF NOT EXISTS posts (
+    id SERIAL PRIMARY KEY,
+    title VARCHAR(200) NOT NULL,
+    content TEXT NOT NULL,
+    author_id INTEGER NOT NULL,
+    created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    -- Ограничение внешнего ключа с каскадным удалением
+    CONSTRAINT fk_posts_author FOREIGN KEY (author_id)
+        REFERENCES users(id) ON DELETE CASCADE
+);
 
 -- Таблица комментариев
--- TODO: Создайте таблицу comments со следующими полями:
--- - id (serial, primary key)
--- - content (text, not null)
--- - post_id (integer, foreign key на posts.id)
--- - author_id (integer, foreign key на users.id)
--- - created_at (timestamp, not null)
+-- Создаем таблицу comments с внешними ключами на посты и авторов
+CREATE TABLE IF NOT EXISTS comments (
+    id SERIAL PRIMARY KEY,
+    content TEXT NOT NULL,
+    post_id INTEGER NOT NULL,
+    author_id INTEGER NOT NULL,
+    created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    -- Ограничения внешних ключей с каскадным удалением
+    CONSTRAINT fk_comments_post FOREIGN KEY (post_id)
+        REFERENCES posts(id) ON DELETE CASCADE,
+    CONSTRAINT fk_comments_author FOREIGN KEY (author_id)
+        REFERENCES users(id) ON DELETE CASCADE
+);
 
 -- Индексы
--- TODO: Создайте индексы для оптимизации запросов:
--- - Индекс на posts.author_id для быстрого поиска постов пользователя
--- - Индекс на comments.post_id для быстрого поиска комментариев к посту
--- - Индекс на posts.created_at для сортировки по дате
-
--- Подсказки:
--- 1. Используйте IF NOT EXISTS для избежания ошибок при повторном запуске
--- 2. Для foreign key используйте ON DELETE CASCADE для автоматического удаления связанных записей
--- 3. Для timestamp полей можно использовать DEFAULT CURRENT_TIMESTAMP
--- 4. Не забудьте про ограничения (constraints) для валидации данных
+-- Создаем индексы для оптимизации запросов и ускорения выборок базы данных
+CREATE INDEX IF NOT EXISTS idx_posts_author_id ON posts(author_id);
+CREATE INDEX IF NOT EXISTS idx_comments_post_id ON comments(post_id);
+CREATE INDEX IF NOT EXISTS idx_posts_created_at ON posts(created_at DESC);
