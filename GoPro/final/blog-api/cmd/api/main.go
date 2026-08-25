@@ -159,9 +159,11 @@ type Config struct {
 // loadConfig загружает конфигурацию из переменных окружения
 func loadConfig() *Config {
 	return &Config{
+		// Второстепенные опции, где допустимы дефолтные значения
 		DBSSLMode:       getEnv("DB_SSL_MODE", "disable"),
 		CacheTTLMinutes: getEnvAsInt("CACHE_TTL_MINUTES", 15),
 
+		// КРИТИЧЕСКИЕ ПАРАМЕТРЫ: Без дефолтов в коде. Обязательны в .env
 		ServerHost:      getEnvRequired("SERVER_HOST"),
 		ServerPort:      getEnvAsIntRequired("SERVER_PORT"),
 
