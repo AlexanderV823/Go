@@ -18,9 +18,13 @@ import (
 
 	"github.com/go-chi/chi/v5"
 	"github.com/joho/godotenv"
+	"github.com/lib/pq"
 )
 
 func main() {
+
+	_ = pq.Driver{}
+
 	// Загружаем конфигурацию из .env файла
 	if err := godotenv.Load(); err != nil {
 		log.Printf("Warning: .env file not found, using environment variables")
