@@ -7,7 +7,11 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"regexp"
+	"net/mail"
+	"strings"
+	"unicode/utf8"
+
+	"github.com/lib/pq"
 )
 
 var (
@@ -55,12 +59,18 @@ func (s *UserService) Register(ctx context.Context, req *model.UserCreateRequest
 	}
 
 	user := &model.User{
-		Username: req.Username,
-		Email:    req.Email,
+		Username:     req.Username,
+		Email:        req.Email,
 		PasswordHash: passwordHash,
 	}
 
 	if err := s.userRepo.Create(ctx, user); err != nil {
+
+		if pqErr, ok := err.(*pq.Error); ok {
+			if pqErr.Code == "23505" { // Код unique_violation в PostgreSQL
+				return nil, ErrUserAlreadyExists
+			}
+		}
 		return nil, err
 	}
 
@@ -69,7 +79,6 @@ func (s *UserService) Register(ctx context.Context, req *model.UserCreateRequest
 		return nil, err
 	}
 
-	// ИСПРАВЛЕНО: Вызвали метод .ToResponse() для приведения типов
 	return &model.TokenResponse{
 		Token:     token,
 		ExpiresAt: expiresAt,
@@ -87,7 +96,6 @@ func (s *UserService) Login(ctx context.Context, req *model.UserLoginRequest) (*
 		return nil, ErrInvalidCredentials
 	}
 
-	// ИСПРАВЛЕНО: Изменили user.PasswordHash на user.Password
 	if !auth.CheckPassword(req.Password, user.PasswordHash) {
 		return nil, ErrInvalidCredentials
 	}
@@ -97,14 +105,12 @@ func (s *UserService) Login(ctx context.Context, req *model.UserLoginRequest) (*
 		return nil, err
 	}
 
-	// ИСПРАВЛЕНО: Вызвали метод .ToResponse() для приведения типов
 	return &model.TokenResponse{
 		Token:     token,
 		ExpiresAt: expiresAt,
 		User:      user.ToResponse(),
 	}, nil
 }
-
 
 func (s *UserService) GetByID(ctx context.Context, id int) (*model.User, error) {
 	user, err := s.userRepo.GetByID(ctx, id)
@@ -123,13 +129,16 @@ func (s *UserService) GetByEmail(ctx context.Context, email string) (*model.User
 
 // validateUserCreateRequest проверяет корректность данных для регистрации
 func validateUserCreateRequest(req *model.UserCreateRequest) error {
-	if len(req.Username) < 3 {
-		return errors.New("username must be at least 3 characters long")
+	if utf8.RuneCountInString(req.Username) < 3 || utf8.RuneCountInString(req.Username) > 50 {
+		return errors.New("username must be between 3 and 50 characters long")
 	}
-	emailRegex := regexp.MustCompile(`^[a-z0-9._%+\-]+@[a-z0-9.\-]+\.[a-z]{2,4}$`)
-	if !emailRegex.MatchString(req.Email) {
+
+	// Стандартная проверка структуры адреса, игнорирующая регистр и ограничения зон верхнего уровня
+	cleanedEmail := strings.ToLower(strings.TrimSpace(req.Email))
+	if _, err := mail.ParseAddress(cleanedEmail); err != nil {
 		return errors.New("invalid email format")
 	}
+
 	return auth.ValidatePasswordStrength(req.Password)
 }
 

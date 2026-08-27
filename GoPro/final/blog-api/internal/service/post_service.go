@@ -6,6 +6,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"unicode/utf8"
 )
 
 var (
@@ -142,19 +143,22 @@ func (s *PostService) GetByAuthor(ctx context.Context, authorID int, limit, offs
 }
 
 func validatePostCreateRequest(req *model.PostCreateRequest) error {
-	if req.Title == "" || len(req.Title) > 200 {
+	if req.Title == "" || utf8.RuneCountInString(req.Title) > 200 {
 		return errors.New("title must be present and cannot exceed 200 characters")
 	}
-	if req.Content == "" {
-		return errors.New("content cannot be empty")
+	if req.Content == "" || utf8.RuneCountInString(req.Content) > 50000 {
+		return errors.New("content cannot be empty and cannot exceed 50000 characters")
 	}
 	return nil
 }
 
 // validatePostUpdateRequest проверяет корректность данных для обновления поста
 func validatePostUpdateRequest(req *model.PostUpdateRequest) error {
-	if req.Title != "" && len(req.Title) > 200 {
+	if req.Title != "" && utf8.RuneCountInString(req.Title) > 200 {
 		return errors.New("title cannot exceed 200 characters")
+	}
+	if req.Content != "" && utf8.RuneCountInString(req.Content) > 50000 {
+		return errors.New("content cannot exceed 50000 characters")
 	}
 	return nil
 }

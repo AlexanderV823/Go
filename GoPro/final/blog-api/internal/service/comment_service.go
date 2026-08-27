@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"time"
+	"unicode/utf8"
 )
 
 var (
@@ -29,36 +30,44 @@ func NewCommentService(commentRepo *repository.CommentRepo, postRepo *repository
 }
 
 func (s *CommentService) Create(ctx context.Context, postID int, req *model.CommentCreateRequest, authorID int) (*model.CommentResponse, error) {
-    // Проверяем валидацию только текста
-    if err := validateCommentCreateRequest(req); err != nil {
-        return nil, err
-    }
-
-    comment := &model.Comment{
-        Content:   req.Content,
-        PostID:    postID, // Теперь всё работает правильно
-        AuthorID:  authorID,
-        CreatedAt: time.Now(),
-        UpdatedAt: time.Now(),
-    }
-
-    if err := s.commentRepo.Create(ctx, comment); err != nil {
-        return nil, err
+	// Валидация текста комментария в рунах
+	if err := validateCommentCreateRequest(req); err != nil {
+		return nil, err
 	}
 
-    author, err := s.userRepo.GetByID(ctx, authorID)
-    if err != nil {
-        return nil, err
-    }
+	postExists, err := s.postRepo.Exists(ctx, postID)
+	if err != nil {
+		return nil, err
+	}
+	if !postExists {
+		return nil, ErrPostNotExists
+	}
 
-    return &model.CommentResponse{
-        ID:        comment.ID,
-        Content:   comment.Content,
-        PostID:    comment.PostID,
-        Author:    author.ToResponse(),
-        CreatedAt: comment.CreatedAt,
-        UpdatedAt: comment.UpdatedAt,
-    }, nil
+	comment := &model.Comment{
+		Content:   req.Content,
+		PostID:    postID,
+		AuthorID:  authorID,
+		CreatedAt: time.Now(),
+		UpdatedAt: time.Now(),
+	}
+
+	if err := s.commentRepo.Create(ctx, comment); err != nil {
+		return nil, err
+	}
+
+	author, err := s.userRepo.GetByID(ctx, authorID)
+	if err != nil {
+		return nil, err
+	}
+
+	return &model.CommentResponse{
+		ID:        comment.ID,
+		Content:   comment.Content,
+		PostID:    comment.PostID,
+		Author:    author.ToResponse(),
+		CreatedAt: comment.CreatedAt,
+		UpdatedAt: comment.UpdatedAt,
+	}, nil
 }
 
 func (s *CommentService) GetByID(ctx context.Context, id int) (*model.Comment, error) {
@@ -158,17 +167,16 @@ func (s *CommentService) GetByAuthor(ctx context.Context, authorID int, limit, o
 
 // validateCommentCreateRequest проверяет корректность данных для создания комментария
 func validateCommentCreateRequest(req *model.CommentCreateRequest) error {
-	// Проверяем, что текст комментария не пустой и не превышает 1000 символов
-	if req.Content == "" || len(req.Content) > 1000 {
-		return errors.New("content must be present and cannot exceed 1000 characters")
+	if req.Content == "" || utf8.RuneCountInString(req.Content) > 2000 {
+		return errors.New("content must be present and cannot exceed 2000 characters")
 	}
 	return nil
 }
 
 // validateCommentUpdateRequest проверяет корректность данных для обновления комментария
 func validateCommentUpdateRequest(req *model.CommentCreateRequest) error {
-	if req.Content == "" || len(req.Content) > 1000 {
-		return errors.New("content must be present and cannot exceed 1000 characters")
+	if req.Content == "" || utf8.RuneCountInString(req.Content) > 2000 {
+		return errors.New("content must be present and cannot exceed 2000 characters")
 	}
 	return nil
 }
