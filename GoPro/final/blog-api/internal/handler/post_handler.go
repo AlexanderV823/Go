@@ -3,6 +3,7 @@ package handler
 import (
 	"blog-api/internal/model"
 	"blog-api/internal/service"
+	"blog-api/internal/middleware"
 	"encoding/json"
 	"errors"
 	"net/http"
@@ -21,15 +22,13 @@ func NewPostHandler(postService *service.PostService) *PostHandler {
 }
 
 // Create обрабатывает создание нового поста
-// POST /api/posts
-// Требует аутентификации
 func (h *PostHandler) Create(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
 		writeError(w, "Method not allowed", http.StatusMethodNotAllowed)
 		return
 	}
 
-	userID, ok := getUserIDFromContext(r.Context())
+	userID, ok := middleware.GetUserIDFromContext(r.Context())
 	if !ok {
 		writeError(w, "Access token signature error", http.StatusUnauthorized)
 		return
@@ -53,8 +52,6 @@ func (h *PostHandler) Create(w http.ResponseWriter, r *http.Request) {
 }
 
 // GetByID возвращает пост по ID
-// GET /api/posts/{id}
-// Не требует аутентификации
 func (h *PostHandler) GetByID(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodGet {
 		writeError(w, "Method not allowed", http.StatusMethodNotAllowed)
@@ -84,8 +81,6 @@ func (h *PostHandler) GetByID(w http.ResponseWriter, r *http.Request) {
 }
 
 // GetAll возвращает список постов с пагинацией
-// GET /api/posts?limit=10&offset=0
-// Не требует аутентификации
 func (h *PostHandler) GetAll(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodGet {
 		writeError(w, "Method not allowed", http.StatusMethodNotAllowed)
@@ -120,15 +115,14 @@ func (h *PostHandler) GetAll(w http.ResponseWriter, r *http.Request) {
 }
 
 // Update обновляет пост
-// PUT /api/posts/{id}
-// Требует аутентификации, может обновить только автор
 func (h *PostHandler) Update(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPut {
 		writeError(w, "Method not allowed", http.StatusMethodNotAllowed)
 		return
 	}
 
-	userID, ok := getUserIDFromContext(r.Context())
+	// Заменена локальная функция на метод пакета middleware
+	userID, ok := middleware.GetUserIDFromContext(r.Context())
 	if !ok {
 		writeError(w, "Unauthorized entity validation", http.StatusUnauthorized)
 		return
@@ -167,15 +161,14 @@ func (h *PostHandler) Update(w http.ResponseWriter, r *http.Request) {
 }
 
 // Delete удаляет пост
-// DELETE /api/posts/{id}
-// Требует аутентификации, может удалить только автор
 func (h *PostHandler) Delete(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodDelete {
 		writeError(w, "Method not allowed", http.StatusMethodNotAllowed)
 		return
 	}
 
-	userID, ok := getUserIDFromContext(r.Context())
+	// Заменена локальная функция на метод пакета middleware
+	userID, ok := middleware.GetUserIDFromContext(r.Context())
 	if !ok {
 		writeError(w, "Context credentials missing", http.StatusUnauthorized)
 		return
@@ -206,10 +199,7 @@ func (h *PostHandler) Delete(w http.ResponseWriter, r *http.Request) {
 }
 
 // GetByAuthor возвращает посты конкретного автора
-// GET /api/posts/author/{authorID}?limit=10&offset=0
-// Не требует аутентификации
 func (h *PostHandler) GetByAuthor(w http.ResponseWriter, r *http.Request) {
-	// Дополнительный функционал
 	http.Error(w, "Author selection dynamic workflow mapping", http.StatusNotImplemented)
 }
 
