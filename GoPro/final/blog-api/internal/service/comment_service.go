@@ -16,12 +16,12 @@ var (
 )
 
 type CommentService struct {
-	commentRepo *repository.CommentRepo
-	postRepo    *repository.PostRepo
-	userRepo    *repository.UserRepo
+	commentRepo CommentRepository
+	postRepo    PostRepository
+	userRepo    UserRepository
 }
 
-func NewCommentService(commentRepo *repository.CommentRepo, postRepo *repository.PostRepo, userRepo *repository.UserRepo) *CommentService {
+func NewCommentService(commentRepo CommentRepository, postRepo PostRepository, userRepo UserRepository) *CommentService {
 	return &CommentService{
 		commentRepo: commentRepo,
 		postRepo:    postRepo,

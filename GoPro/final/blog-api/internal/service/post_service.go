@@ -16,11 +16,11 @@ var (
 )
 
 type PostService struct {
-	postRepo *repository.PostRepo
-	userRepo *repository.UserRepo
+	postRepo PostRepository
+	userRepo UserRepository
 }
 
-func NewPostService(postRepo *repository.PostRepo, userRepo *repository.UserRepo) *PostService {
+func NewPostService(postRepo PostRepository, userRepo UserRepository) *PostService {
 	return &PostService{
 		postRepo: postRepo,
 		userRepo: userRepo,

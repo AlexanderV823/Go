@@ -21,11 +21,11 @@ var (
 )
 
 type UserService struct {
-	userRepo   *repository.UserRepo
+	userRepo   UserRepository
 	jwtManager *auth.JWTManager
 }
 
-func NewUserService(userRepo *repository.UserRepo, jwtManager *auth.JWTManager) *UserService {
+func NewUserService(userRepo UserRepository, jwtManager *auth.JWTManager) *UserService {
 	return &UserService{
 		userRepo:   userRepo,
 		jwtManager: jwtManager,
