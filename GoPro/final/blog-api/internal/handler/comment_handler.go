@@ -24,32 +24,38 @@ func NewCommentHandler(commentService *service.CommentService) *CommentHandler {
 }
 
 // CreateComment обрабатывает создание нового комментария
-// POST /api/comments
-// Требует аутентификации
+// POST /api/posts/{id}/comments
 func (h *CommentHandler) CreateComment(w http.ResponseWriter, r *http.Request) {
 	postIDStr := chi.URLParam(r, "id")
 	postID, err := strconv.Atoi(postIDStr)
 	if err != nil {
-		http.Error(w, "invalid post id", http.StatusBadRequest)
+		writeError(w, "invalid post id", http.StatusBadRequest)
 		return
 	}
 
 	var req model.CommentCreateRequest
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		http.Error(w, "invalid request body", http.StatusBadRequest)
+	// Лимит 256 КБ на комментарий
+	if err := decodeJSONStrict(w, r, &req, 256<<10); err != nil {
+		writeError(w, "invalid request body: "+err.Error(), http.StatusBadRequest)
 		return
 	}
 
-	// Заменено прямое обращение по строковому ключу "userID"
 	userID, ok := middleware.GetUserIDFromContext(r.Context())
 	if !ok {
-		http.Error(w, "unauthorized", http.StatusUnauthorized)
+		writeError(w, "unauthorized", http.StatusUnauthorized)
+		return
+	}
+
+	// Валидация содержимого в рунах
+	req.Content, ok = cleanAndValidateString(req.Content, 1, 2000)
+	if !ok {
+		writeError(w, "Comment content must be between 1 and 2000 characters and cannot consist of spaces", http.StatusBadRequest)
 		return
 	}
 
 	resp, err := h.commentService.Create(r.Context(), postID, &req, userID)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		writeError(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
 
@@ -60,7 +66,7 @@ func (h *CommentHandler) CreateComment(w http.ResponseWriter, r *http.Request) {
 // GetByID возвращает комментарий по ID
 func (h *CommentHandler) GetByID(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodGet {
-		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		writeError(w, "Method not allowed", http.StatusMethodNotAllowed)
 		return
 	}
 
@@ -89,7 +95,7 @@ func (h *CommentHandler) GetByID(w http.ResponseWriter, r *http.Request) {
 // GetByPost возвращает комментарии к посту
 func (h *CommentHandler) GetByPost(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodGet {
-		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		writeError(w, "Method not allowed", http.StatusMethodNotAllowed)
 		return
 	}
 
@@ -137,11 +143,10 @@ func (h *CommentHandler) GetByPost(w http.ResponseWriter, r *http.Request) {
 // Update обновляет комментарий
 func (h *CommentHandler) Update(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPut {
-		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		writeError(w, "Method not allowed", http.StatusMethodNotAllowed)
 		return
 	}
 
-	// Заменена локальная функция на метод пакета middleware
 	userID, ok := middleware.GetUserIDFromContext(r.Context())
 	if !ok {
 		writeError(w, "Security parameter binding mismatch", http.StatusUnauthorized)
@@ -156,8 +161,14 @@ func (h *CommentHandler) Update(w http.ResponseWriter, r *http.Request) {
 	}
 
 	var req model.CommentCreateRequest
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		writeError(w, "Malformed validation matrix signature", http.StatusBadRequest)
+	if err := decodeJSONStrict(w, r, &req, 256<<10); err != nil {
+		writeError(w, "Malformed validation matrix signature: "+err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	req.Content, ok = cleanAndValidateString(req.Content, 1, 2000)
+	if !ok {
+		writeError(w, "Comment content must be between 1 and 2000 characters and cannot consist of spaces", http.StatusBadRequest)
 		return
 	}
 
@@ -181,11 +192,10 @@ func (h *CommentHandler) Update(w http.ResponseWriter, r *http.Request) {
 // Delete удаляет комментарий
 func (h *CommentHandler) Delete(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodDelete {
-		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		writeError(w, "Method not allowed", http.StatusMethodNotAllowed)
 		return
 	}
 
-	// Заменена локальная функция на метод пакета middleware
 	userID, ok := middleware.GetUserIDFromContext(r.Context())
 	if !ok {
 		writeError(w, "Security parameter binding mismatch", http.StatusUnauthorized)

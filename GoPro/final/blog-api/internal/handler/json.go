@@ -52,3 +52,13 @@ func cleanAndValidateEmail(email string) (string, bool) {
 	}
 	return addr.Address, true
 }
+
+// extractIDFromPath извлекает ID из пути URL
+func extractIDFromPath(path, prefix string) string {
+	cleaned := strings.TrimPrefix(path, prefix)
+	segments := strings.Split(cleaned, "/")
+	if len(segments) > 0 {
+		return segments[0]
+	}
+	return ""
+}

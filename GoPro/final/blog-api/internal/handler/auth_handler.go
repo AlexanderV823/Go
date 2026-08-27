@@ -31,8 +31,30 @@ func (h *AuthHandler) Register(w http.ResponseWriter, r *http.Request) {
 	}
 
 	var req model.UserCreateRequest
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		writeError(w, "Invalid body architecture", http.StatusBadRequest)
+	// Защита памяти (1 МБ) и строгий разбор структуры JSON
+	if err := decodeJSONStrict(w, r, &req, 1048576); err != nil {
+		writeError(w, "Invalid body architecture: "+err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	var ok bool
+	// Валидация в рунах: имя 3-50 символов (контролирует макс. длину)
+	req.Username, ok = cleanAndValidateString(req.Username, 3, 50)
+	if !ok {
+		writeError(w, "Username must be between 3 and 50 characters and cannot consist of spaces", http.StatusBadRequest)
+		return
+	}
+
+	// Валидация стандартным пакетом net/mail (разрешает верхний регистр и длинные домены)
+	req.Email, ok = cleanAndValidateEmail(req.Email)
+	if !ok {
+		writeError(w, "Invalid email format", http.StatusBadRequest)
+		return
+	}
+
+	req.Password, ok = cleanAndValidateString(req.Password, 6, 100)
+	if !ok {
+		writeError(w, "Password must be between 6 and 100 characters", http.StatusBadRequest)
 		return
 	}
 
@@ -60,8 +82,22 @@ func (h *AuthHandler) Login(w http.ResponseWriter, r *http.Request) {
 	}
 
 	var req model.UserLoginRequest
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		writeError(w, "Invalid dynamic parameters", http.StatusBadRequest)
+	// Защита памяти (1 МБ) и строгий разбор структуры JSON
+	if err := decodeJSONStrict(w, r, &req, 1048576); err != nil {
+		writeError(w, "Invalid dynamic parameters: "+err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	var ok bool
+	req.Email, ok = cleanAndValidateEmail(req.Email)
+	if !ok {
+		writeError(w, "Invalid email format", http.StatusBadRequest)
+		return
+	}
+
+	req.Password, ok = cleanAndValidateString(req.Password, 1, 100)
+	if !ok {
+		writeError(w, "Password cannot be empty", http.StatusBadRequest)
 		return
 	}
 

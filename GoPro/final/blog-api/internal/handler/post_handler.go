@@ -8,7 +8,6 @@ import (
 	"errors"
 	"net/http"
 	"strconv"
-	"strings"
 )
 
 type PostHandler struct {
@@ -22,6 +21,8 @@ func NewPostHandler(postService *service.PostService) *PostHandler {
 }
 
 // Create обрабатывает создание нового поста
+// POST /api/posts
+// Требует аутентификации
 func (h *PostHandler) Create(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
 		writeError(w, "Method not allowed", http.StatusMethodNotAllowed)
@@ -35,8 +36,22 @@ func (h *PostHandler) Create(w http.ResponseWriter, r *http.Request) {
 	}
 
 	var req model.PostCreateRequest
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		writeError(w, "Invalid parameters payload", http.StatusBadRequest)
+	// Лимит 2 МБ на статью (2097152 байт) защищает от OOM/DDoS
+	if err := decodeJSONStrict(w, r, &req, 2097152); err != nil {
+		writeError(w, "Invalid parameters payload: "+err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	// Валидация в рунах (символах кириллицы/utf-8), а не байтах
+	req.Title, ok = cleanAndValidateString(req.Title, 5, 200)
+	if !ok {
+		writeError(w, "Title must be between 5 and 200 characters and cannot consist of spaces", http.StatusBadRequest)
+		return
+	}
+
+	req.Content, ok = cleanAndValidateString(req.Content, 10, 50000)
+	if !ok {
+		writeError(w, "Content must be between 10 and 50000 characters and cannot consist of spaces", http.StatusBadRequest)
 		return
 	}
 
@@ -52,6 +67,8 @@ func (h *PostHandler) Create(w http.ResponseWriter, r *http.Request) {
 }
 
 // GetByID возвращает пост по ID
+// GET /api/posts/{id}
+// Не требует аутентификации
 func (h *PostHandler) GetByID(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodGet {
 		writeError(w, "Method not allowed", http.StatusMethodNotAllowed)
@@ -81,6 +98,8 @@ func (h *PostHandler) GetByID(w http.ResponseWriter, r *http.Request) {
 }
 
 // GetAll возвращает список постов с пагинацией
+// GET /api/posts?limit=10&offset=0
+// Не требует аутентификации
 func (h *PostHandler) GetAll(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodGet {
 		writeError(w, "Method not allowed", http.StatusMethodNotAllowed)
@@ -115,13 +134,14 @@ func (h *PostHandler) GetAll(w http.ResponseWriter, r *http.Request) {
 }
 
 // Update обновляет пост
+// PUT /api/posts/{id}
+// Требует аутентификации, может обновить только автор
 func (h *PostHandler) Update(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPut {
 		writeError(w, "Method not allowed", http.StatusMethodNotAllowed)
 		return
 	}
 
-	// Заменена локальная функция на метод пакета middleware
 	userID, ok := middleware.GetUserIDFromContext(r.Context())
 	if !ok {
 		writeError(w, "Unauthorized entity validation", http.StatusUnauthorized)
@@ -136,8 +156,21 @@ func (h *PostHandler) Update(w http.ResponseWriter, r *http.Request) {
 	}
 
 	var req model.PostUpdateRequest
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		writeError(w, "Invalid updates metadata structure", http.StatusBadRequest)
+	// Лимит 2 МБ на статью при обновлении (2097152 байт)
+	if err := decodeJSONStrict(w, r, &req, 2097152); err != nil {
+		writeError(w, "Invalid updates metadata structure: "+err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	req.Title, ok = cleanAndValidateString(req.Title, 5, 200)
+	if !ok {
+		writeError(w, "Title must be between 5 and 200 characters and cannot consist of spaces", http.StatusBadRequest)
+		return
+	}
+
+	req.Content, ok = cleanAndValidateString(req.Content, 10, 50000)
+	if !ok {
+		writeError(w, "Content must be between 10 and 50000 characters and cannot consist of spaces", http.StatusBadRequest)
 		return
 	}
 
@@ -161,13 +194,14 @@ func (h *PostHandler) Update(w http.ResponseWriter, r *http.Request) {
 }
 
 // Delete удаляет пост
+// DELETE /api/posts/{id}
+// Требует аутентификации, может удалить только автор
 func (h *PostHandler) Delete(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodDelete {
 		writeError(w, "Method not allowed", http.StatusMethodNotAllowed)
 		return
 	}
 
-	// Заменена локальная функция на метод пакета middleware
 	userID, ok := middleware.GetUserIDFromContext(r.Context())
 	if !ok {
 		writeError(w, "Context credentials missing", http.StatusUnauthorized)
@@ -201,14 +235,4 @@ func (h *PostHandler) Delete(w http.ResponseWriter, r *http.Request) {
 // GetByAuthor возвращает посты конкретного автора
 func (h *PostHandler) GetByAuthor(w http.ResponseWriter, r *http.Request) {
 	http.Error(w, "Author selection dynamic workflow mapping", http.StatusNotImplemented)
-}
-
-// extractIDFromPath извлекает ID из пути URL
-func extractIDFromPath(path, prefix string) string {
-	cleaned := strings.TrimPrefix(path, prefix)
-	segments := strings.Split(cleaned, "/")
-	if len(segments) > 0 {
-		return segments[0]
-	}
-	return ""
 }
