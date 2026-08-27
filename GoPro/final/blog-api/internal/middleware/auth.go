@@ -29,12 +29,12 @@ func NewAuthMiddleware(jwtManager *auth.JWTManager) *AuthMiddleware {
 	}
 }
 
-// RequireAuth — middleware, который валидирует JWT-токен.
+// RequireAuth requires valid JWT token
 func (m *AuthMiddleware) RequireAuth(next http.Handler) http.Handler {
 	return m.Handler(next)
 }
 
-// Handler адаптирует middleware для работы со стандартными интерфейсами net/http.
+// Handler адаптирует middleware для работы со стандартными интерфейсами net/http
 func (m *AuthMiddleware) Handler(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		tokenStr := extractToken(r)
@@ -49,7 +49,6 @@ func (m *AuthMiddleware) Handler(next http.Handler) http.Handler {
 			return
 		}
 
-		// Записываем данные только через строго типизированные ключи contextKey
 		ctx := context.WithValue(r.Context(), UserIDKey, claims.UserID)
 		ctx = context.WithValue(ctx, UserEmailKey, claims.Email)
 		ctx = context.WithValue(ctx, UserNameKey, claims.Username)
@@ -64,7 +63,6 @@ func (m *AuthMiddleware) OptionalAuth(next http.Handler) http.Handler {
 		tokenStr := extractToken(r)
 		if tokenStr != "" {
 			if claims, err := m.jwtManager.ValidateToken(tokenStr); err == nil {
-				// Записываем данные только через строго типизированные ключи contextKey
 				ctx := context.WithValue(r.Context(), UserIDKey, claims.UserID)
 				ctx = context.WithValue(ctx, UserEmailKey, claims.Email)
 				ctx = context.WithValue(ctx, UserNameKey, claims.Username)
@@ -89,7 +87,7 @@ func extractToken(r *http.Request) string {
 	return ""
 }
 
-// GetUserIDFromContext извлекает ID пользователя из контекста по типизированному ключу
+// GetUserIDFromContext извлекает ID пользователя из контекста
 func GetUserIDFromContext(ctx context.Context) (int, bool) {
 	if val := ctx.Value(UserIDKey); val != nil {
 		if id, ok := val.(int); ok {
@@ -99,7 +97,7 @@ func GetUserIDFromContext(ctx context.Context) (int, bool) {
 	return 0, false
 }
 
-// GetUserEmailFromContext извлекает email пользователя из контекста по типизированному ключу
+// GetUserEmailFromContext извлекает email пользователя из контекста
 func GetUserEmailFromContext(ctx context.Context) (string, bool) {
 	if val := ctx.Value(UserEmailKey); val != nil {
 		if email, ok := val.(string); ok {
@@ -109,7 +107,7 @@ func GetUserEmailFromContext(ctx context.Context) (string, bool) {
 	return "", false
 }
 
-// GetUsernameFromContext извлекает username из контекста по типизированному ключу
+// GetUsernameFromContext извлекает username из контекста
 func GetUsernameFromContext(ctx context.Context) (string, bool) {
 	if val := ctx.Value(UserNameKey); val != nil {
 		if name, ok := val.(string); ok {
@@ -123,7 +121,7 @@ func GetUsernameFromContext(ctx context.Context) (string, bool) {
 func writeJSONError(w http.ResponseWriter, message string, statusCode int) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(statusCode)
-	json.NewEncoder(w).Encode(map[string]string{"error": message})
+	_ = json.NewEncoder(w).Encode(map[string]string{"error": message})
 }
 
 // Chain позволяет объединить несколько middleware в цепочку
