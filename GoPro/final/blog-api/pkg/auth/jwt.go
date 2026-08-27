@@ -58,7 +58,7 @@ func (m *JWTManager) GenerateToken(userID int, email, username string) (string, 
 	return tokenString, expiry, nil
 }
 
-// ValidateToken проверяет и парсит JWT токен
+// ValidateToken проверяет и парсит JWT токен с обязательной валидацией подписи и срока действия
 func (m *JWTManager) ValidateToken(tokenString string) (*Claims, error) {
 	token, err := jwt.ParseWithClaims(tokenString, &Claims{}, func(token *jwt.Token) (interface{}, error) {
 		if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
@@ -80,28 +80,4 @@ func (m *JWTManager) ValidateToken(tokenString string) (*Claims, error) {
 	}
 
 	return claims, nil
-}
-
-// RefreshToken обновляет существующий токен (опциональное задание)
-func (m *JWTManager) RefreshToken(tokenString string) (string, time.Time, error) {
-	claims, err := m.ValidateToken(tokenString)
-	if err != nil && !errors.Is(err, ErrExpiredToken) {
-		return "", time.Time{}, err
-	}
-
-	return m.GenerateToken(claims.UserID, claims.Email, claims.Username)
-}
-
-// GetUserIDFromToken быстро извлекает ID пользователя из токена без полной валидации
-func (m *JWTManager) GetUserIDFromToken(tokenString string) (int, error) {
-	token, _, err := new(jwt.Parser).ParseUnverified(tokenString, &Claims{})
-	if err != nil {
-		return 0, ErrInvalidToken
-	}
-
-	if claims, ok := token.Claims.(*Claims); ok {
-		return claims.UserID, nil
-	}
-
-	return 0, ErrInvalidToken
 }
