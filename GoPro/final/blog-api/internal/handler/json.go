@@ -9,6 +9,7 @@ import (
 	"net/mail"
 	"strings"
 	"unicode/utf8"
+	"strconv"
 )
 
 // decodeJSONStrict настраивает строгое и безопасное чтение JSON
@@ -61,4 +62,31 @@ func extractIDFromPath(path, prefix string) string {
 		return segments[0]
 	}
 	return ""
+}
+
+// ParsePagination извлекает и строго валидирует параметры пагинации.
+// Возвращает 400 при неверном формате данных.
+func ParsePagination(r *http.Request, defaultLimit, maxLimit int) (int, int, error) {
+	query := r.URL.Query()
+	limitStr := query.Get("limit")
+	offsetStr := query.Get("offset")
+
+	limit := defaultLimit
+	var err error
+	if limitStr != "" {
+		limit, err = strconv.Atoi(limitStr)
+		if err != nil || limit <= 0 || limit > maxLimit {
+			return 0, 0, fmt.Errorf("invalid limit parameter: must be a positive integer up to %d", maxLimit)
+		}
+	}
+
+	offset := 0
+	if offsetStr != "" {
+		offset, err = strconv.Atoi(offsetStr)
+		if err != nil || offset < 0 {
+			return 0, 0, errors.New("invalid offset parameter: must be a non-negative integer")
+		}
+	}
+
+	return limit, offset, nil
 }

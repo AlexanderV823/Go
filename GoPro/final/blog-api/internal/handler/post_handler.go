@@ -8,6 +8,7 @@ import (
 	"errors"
 	"net/http"
 	"strconv"
+	"log"
 )
 
 type PostHandler struct {
@@ -106,13 +107,16 @@ func (h *PostHandler) GetAll(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	query := r.URL.Query()
-	limit, _ := strconv.Atoi(query.Get("limit"))
-	offset, _ := strconv.Atoi(query.Get("offset"))
+	limit, offset, err := ParsePagination(r, 10, 100)
+	if err != nil {
+		writeError(w, err.Error(), http.StatusBadRequest)
+		return
+	}
 
 	posts, total, err := h.postService.GetAll(r.Context(), limit, offset)
 	if err != nil {
-		writeError(w, err.Error(), http.StatusInternalServerError)
+		log.Printf("[ERROR] Failed to get posts: %v", err)
+		writeError(w, "Internal server error", http.StatusInternalServerError)
 		return
 	}
 

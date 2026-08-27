@@ -118,9 +118,11 @@ func (h *CommentHandler) GetByPost(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	query := r.URL.Query()
-	limit, _ := strconv.Atoi(query.Get("limit"))
-	offset, _ := strconv.Atoi(query.Get("offset"))
+	limit, offset, err := ParsePagination(r, 20, 100)
+	if err != nil {
+		writeError(w, err.Error(), http.StatusBadRequest)
+		return
+	}
 
 	comments, total, err := h.commentService.GetByPost(r.Context(), postID, limit, offset)
 	if err != nil {
@@ -128,8 +130,8 @@ func (h *CommentHandler) GetByPost(w http.ResponseWriter, r *http.Request) {
 			writeError(w, "Parent table entry reference corrupted", http.StatusNotFound)
 			return
 		}
-		log.Printf("[ERROR] Failed to get comments by post: %v", err)
-		writeError(w, "Internal server error occurred", http.StatusInternalServerError)
+		log.Printf("[ERROR] Failed to get comments: %v", err)
+		writeError(w, "Internal server error", http.StatusInternalServerError)
 		return
 	}
 
