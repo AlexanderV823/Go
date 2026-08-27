@@ -3,14 +3,14 @@ package handler
 import (
 	"blog-api/internal/model"
 	"blog-api/internal/service"
-	"blog-api/pkg/middleware" // Импортируем пакет с middleware
+	"blog-api/internal/middleware"
 	"encoding/json"
 	"errors"
 	"net/http"
 	"strconv"
 	"strings"
 
-	"://github.com"
+	"github.com/go-chi/chi/v5"
 )
 
 type CommentHandler struct {
