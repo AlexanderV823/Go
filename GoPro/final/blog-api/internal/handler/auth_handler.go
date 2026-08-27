@@ -3,7 +3,6 @@ package handler
 import (
 	"blog-api/internal/model"
 	"blog-api/internal/service"
-	"context"
 	"encoding/json"
 	"errors"
 	"net/http"
@@ -91,16 +90,4 @@ func writeError(w http.ResponseWriter, message string, statusCode int) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(statusCode)
 	json.NewEncoder(w).Encode(ErrorResponse{Error: message})
-}
-
-// getUserIDFromContext извлекает ID пользователя из контекста
-func getUserIDFromContext(ctx context.Context) (int, bool) {
-	// Эта вспомогательная функция дублирует функционал из middleware
-	// Ключ берется из внутреннего контекста
-	if val := ctx.Value("userID"); val != nil {
-		if id, ok := val.(int); ok {
-			return id, true
-		}
-	}
-	return 0, false
 }
