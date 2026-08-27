@@ -11,6 +11,7 @@ import (
 	"strconv"
 	"time"
 
+	"blog-api/pkg/database"
 	"blog-api/internal/handler"
 	"blog-api/internal/middleware"
 	"blog-api/internal/repository"
@@ -71,6 +72,13 @@ func main() {
 	}
 	log.Println("Successfully connected to the database")
 
+	// Вызываем функцию миграций для синхронизации структуры таблиц при каждом запуске
+	log.Println("Running database migrations...")
+	if err := database.Migrate(db); err != nil {
+		log.Fatalf("Critical error executing database migrations: %v", err)
+	}
+	log.Println("Database migrations applied successfully")
+
 	// Инициализируем JWT менеджер
 	jwtManager := auth.NewJWTManager(cfg.JWTSecret, cfg.JWTExpiryHours)
 
@@ -129,10 +137,33 @@ func main() {
 		})
 
 		// Health check эндпоинт
-		r.Get("/health", func(w http.ResponseWriter, r *http.Request) {
+r.Get("/health", func(w http.ResponseWriter, r *http.Request) {
 			w.Header().Set("Content-Type", "application/json")
+
+			// Создаем короткий контекст с тайм-аутом 2 секунды, чтобы не вешать запрос
+			ctx, cancel := context.WithTimeout(r.Context(), 2*time.Second)
+			defer cancel()
+
+			// Выполняем Ping и тестовый легковесный запрос к одной из таблиц схемы
+			// для проверки успешного прохождения миграций
+			err := db.PingContext(ctx)
+			if err == nil {
+				_, err = db.ExecContext(ctx, "SELECT 1 FROM users LIMIT 1;")
+			}
+
+			if err != nil {
+				// Если БД недоступна или схема не инициализирована, отдаем 503 Service Unavailable
+				w.WriteHeader(http.StatusServiceUnavailable)
+
+				// Используем fmt.Appendf вместо ручного приведения []byte(fmt.Sprintf(...))
+				res := fmt.Appendf(nil, `{"status":"down","error":%q,"service":"blog-api"}`, err.Error())
+				_, _ = w.Write(res)
+				return
+			}
+
+			// Если всё в порядке, отдаем стабильный 200 OK
 			w.WriteHeader(http.StatusOK)
-			w.Write([]byte(`{"status":"ok","service":"blog-api"}`))
+			_, _ = w.Write([]byte(`{"status":"ok","database":"connected","service":"blog-api"}`))
 		})
 	})
 
