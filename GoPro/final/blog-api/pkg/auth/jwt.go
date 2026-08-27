@@ -82,7 +82,6 @@ func (m *JWTManager) ValidateToken(tokenString string) (*Claims, error) {
 	return claims, nil
 }
 
-
 // RefreshToken обновляет существующий токен (опциональное задание)
 func (m *JWTManager) RefreshToken(tokenString string) (string, time.Time, error) {
 	claims, err := m.ValidateToken(tokenString)

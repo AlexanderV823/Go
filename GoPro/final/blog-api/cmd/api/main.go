@@ -11,12 +11,12 @@ import (
 	"strconv"
 	"time"
 
-	"blog-api/pkg/database"
 	"blog-api/internal/handler"
 	"blog-api/internal/middleware"
 	"blog-api/internal/repository"
 	"blog-api/internal/service"
 	"blog-api/pkg/auth"
+	"blog-api/pkg/database"
 
 	"github.com/go-chi/chi/v5"
 	"github.com/joho/godotenv"
@@ -107,11 +107,11 @@ func main() {
 	router := chi.NewRouter()
 
 	// Настраиваем кастомные глобальные middleware в строгой последовательности
-	router.Use(customMiddleware.Recovery)                     // 1. Перехват паник
-	router.Use(customMiddleware.RequestID)                    // 2. Трассировка (Request ID)
-	router.Use(customMiddleware.CORS)                         // 3. Обработка CORS заголовков и OPTIONS
+	router.Use(customMiddleware.Recovery)                      // 1. Перехват паник
+	router.Use(customMiddleware.RequestID)                     // 2. Трассировка (Request ID)
+	router.Use(customMiddleware.CORS)                          // 3. Обработка CORS заголовков и OPTIONS
 	router.Use(customMiddleware.RateLimiter(100, time.Minute)) // 4. Защита от DDoS
-	router.Use(customMiddleware.Logger)                       // 5. Логирование запросов
+	router.Use(customMiddleware.Logger)                        // 5. Логирование запросов
 
 	// Роуты API
 	router.Route("/api", func(r chi.Router) {
@@ -137,7 +137,7 @@ func main() {
 		})
 
 		// Health check эндпоинт
-r.Get("/health", func(w http.ResponseWriter, r *http.Request) {
+		r.Get("/health", func(w http.ResponseWriter, r *http.Request) {
 			w.Header().Set("Content-Type", "application/json")
 
 			// Создаем короткий контекст с тайм-аутом 2 секунды, чтобы не вешать запрос
@@ -211,17 +211,17 @@ func loadConfig() *Config {
 		DBSSLMode:       getEnv("DB_SSL_MODE", "disable"),
 		CacheTTLMinutes: getEnvAsInt("CACHE_TTL_MINUTES", 15),
 
-		ServerHost:      getEnvRequired("SERVER_HOST"),
-		ServerPort:      getEnvAsIntRequired("SERVER_PORT"),
+		ServerHost: getEnvRequired("SERVER_HOST"),
+		ServerPort: getEnvAsIntRequired("SERVER_PORT"),
 
-		DBHost:          getEnvRequired("DB_HOST"),
-		DBPort:          getEnvAsIntRequired("DB_PORT"),
-		DBName:          getEnvRequired("DB_NAME"),
-		DBUser:          getEnvRequired("DB_USER"),
-		DBPassword:      getEnvRequired("DB_PASSWORD"),
+		DBHost:     getEnvRequired("DB_HOST"),
+		DBPort:     getEnvAsIntRequired("DB_PORT"),
+		DBName:     getEnvRequired("DB_NAME"),
+		DBUser:     getEnvRequired("DB_USER"),
+		DBPassword: getEnvRequired("DB_PASSWORD"),
 
-		JWTSecret:       getEnvRequired("JWT_SECRET"),
-		JWTExpiryHours:  getEnvAsIntRequired("JWT_EXPIRY_HOURS"),
+		JWTSecret:      getEnvRequired("JWT_SECRET"),
+		JWTExpiryHours: getEnvAsIntRequired("JWT_EXPIRY_HOURS"),
 	}
 }
 

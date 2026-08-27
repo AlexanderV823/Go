@@ -7,9 +7,9 @@ import (
 	"io"
 	"net/http"
 	"net/mail"
+	"strconv"
 	"strings"
 	"unicode/utf8"
-	"strconv"
 )
 
 // decodeJSONStrict настраивает строгое и безопасное чтение JSON

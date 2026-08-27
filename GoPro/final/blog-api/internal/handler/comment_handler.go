@@ -1,9 +1,9 @@
 package handler
 
 import (
+	"blog-api/internal/middleware"
 	"blog-api/internal/model"
 	"blog-api/internal/service"
-	"blog-api/internal/middleware"
 	"encoding/json"
 	"errors"
 	"log"
