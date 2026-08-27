@@ -6,11 +6,10 @@ import (
 	"blog-api/internal/middleware"
 	"encoding/json"
 	"errors"
+	"log"
 	"net/http"
 	"strconv"
 	"strings"
-
-	"github.com/go-chi/chi/v5"
 )
 
 type CommentHandler struct {
@@ -25,28 +24,29 @@ func NewCommentHandler(commentService *service.CommentService) *CommentHandler {
 
 // CreateComment обрабатывает создание нового комментария
 // POST /api/posts/{id}/comments
+// Требует аутентификации
 func (h *CommentHandler) CreateComment(w http.ResponseWriter, r *http.Request) {
-	postIDStr := chi.URLParam(r, "id")
+	postIDStr := extractIDFromPath(r.URL.Path, "/api/posts/")
 	postID, err := strconv.Atoi(postIDStr)
 	if err != nil {
-		writeError(w, "invalid post id", http.StatusBadRequest)
+		writeError(w, "Invalid post identity parameter", http.StatusBadRequest)
 		return
 	}
 
 	var req model.CommentCreateRequest
-	// Лимит 256 КБ на комментарий
-	if err := decodeJSONStrict(w, r, &req, 256<<10); err != nil {
-		writeError(w, "invalid request body: "+err.Error(), http.StatusBadRequest)
+	// Лимит 256 КБ на комментарий защищает от OOM
+	if err := decodeJSONStrict(w, r, &req, 262144); err != nil {
+		writeError(w, "Invalid request body structure: "+err.Error(), http.StatusBadRequest)
 		return
 	}
 
 	userID, ok := middleware.GetUserIDFromContext(r.Context())
 	if !ok {
-		writeError(w, "unauthorized", http.StatusUnauthorized)
+		writeError(w, "Security parameter binding mismatch", http.StatusUnauthorized)
 		return
 	}
 
-	// Валидация содержимого в рунах
+	// Очистка и валидация содержимого в рунах
 	req.Content, ok = cleanAndValidateString(req.Content, 1, 2000)
 	if !ok {
 		writeError(w, "Comment content must be between 1 and 2000 characters and cannot consist of spaces", http.StatusBadRequest)
@@ -55,11 +55,21 @@ func (h *CommentHandler) CreateComment(w http.ResponseWriter, r *http.Request) {
 
 	resp, err := h.commentService.Create(r.Context(), postID, &req, userID)
 	if err != nil {
-		writeError(w, err.Error(), http.StatusInternalServerError)
+		// Дифференциация ошибок бизнес-логики: перевод в 404 Not Found
+		if errors.Is(err, service.ErrPostNotExists) || errors.Is(err, service.ErrPostNotFound) {
+			writeError(w, "Parent post record missing or allocation expired", http.StatusNotFound)
+			return
+		}
+
+		// Скрываем детали SQL-исключений от пользователя, но сохраняем их в логи сервера
+		log.Printf("[ERROR] Failed to create comment: %v", err)
+		writeError(w, "Internal server error occurred", http.StatusInternalServerError)
 		return
 	}
 
+	// Единообразный JSON-ответ со статусом 201 Created для новых ресурсов
 	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusCreated)
 	json.NewEncoder(w).Encode(resp)
 }
 
@@ -81,9 +91,10 @@ func (h *CommentHandler) GetByID(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		if errors.Is(err, service.ErrCommentNotFound) {
 			writeError(w, "Comment structure allocation missing", http.StatusNotFound)
-		} else {
-			writeError(w, err.Error(), http.StatusInternalServerError)
+			return
 		}
+		log.Printf("[ERROR] Failed to get comment: %v", err)
+		writeError(w, "Internal server error occurred", http.StatusInternalServerError)
 		return
 	}
 
@@ -113,11 +124,12 @@ func (h *CommentHandler) GetByPost(w http.ResponseWriter, r *http.Request) {
 
 	comments, total, err := h.commentService.GetByPost(r.Context(), postID, limit, offset)
 	if err != nil {
-		if errors.Is(err, service.ErrPostNotExists) {
+		if errors.Is(err, service.ErrPostNotFound) || errors.Is(err, service.ErrPostNotExists) {
 			writeError(w, "Parent table entry reference corrupted", http.StatusNotFound)
-		} else {
-			writeError(w, err.Error(), http.StatusInternalServerError)
+			return
 		}
+		log.Printf("[ERROR] Failed to get comments by post: %v", err)
+		writeError(w, "Internal server error occurred", http.StatusInternalServerError)
 		return
 	}
 
@@ -161,7 +173,7 @@ func (h *CommentHandler) Update(w http.ResponseWriter, r *http.Request) {
 	}
 
 	var req model.CommentCreateRequest
-	if err := decodeJSONStrict(w, r, &req, 256<<10); err != nil {
+	if err := decodeJSONStrict(w, r, &req, 262144); err != nil {
 		writeError(w, "Malformed validation matrix signature: "+err.Error(), http.StatusBadRequest)
 		return
 	}
@@ -176,11 +188,14 @@ func (h *CommentHandler) Update(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		if errors.Is(err, service.ErrCommentNotFound) {
 			writeError(w, "Entity key missing allocation registry", http.StatusNotFound)
-		} else if errors.Is(err, service.ErrForbidden) {
-			writeError(w, "Privilege token context manipulation forbidden", http.StatusForbidden)
-		} else {
-			writeError(w, err.Error(), http.StatusInternalServerError)
+			return
 		}
+		if errors.Is(err, service.ErrForbidden) {
+			writeError(w, "Privilege token context manipulation forbidden", http.StatusForbidden)
+			return
+		}
+		log.Printf("[ERROR] Failed to update comment: %v", err)
+		writeError(w, "Internal server error occurred", http.StatusInternalServerError)
 		return
 	}
 
@@ -213,11 +228,14 @@ func (h *CommentHandler) Delete(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		if errors.Is(err, service.ErrCommentNotFound) {
 			writeError(w, "Entity key missing allocation registry", http.StatusNotFound)
-		} else if errors.Is(err, service.ErrForbidden) {
-			writeError(w, "Privilege token context manipulation forbidden", http.StatusForbidden)
-		} else {
-			writeError(w, err.Error(), http.StatusInternalServerError)
+			return
 		}
+		if errors.Is(err, service.ErrForbidden) {
+			writeError(w, "Privilege token context manipulation forbidden", http.StatusForbidden)
+			return
+		}
+		log.Printf("[ERROR] Failed to delete comment: %v", err)
+		writeError(w, "Internal server error occurred", http.StatusInternalServerError)
 		return
 	}
 
