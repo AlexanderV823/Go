@@ -6,58 +6,60 @@ import (
 	"time"
 )
 
-// worker обрабатывает задачи из канала jobs и отправляет результаты в results.
-func worker(jobs <-chan Job, results chan<- Result, wg *sync.WaitGroup) {
+func worker(id int, jobs <-chan Job, results chan<- Result, wg *sync.WaitGroup) {
 	defer wg.Done()
 
 	for job := range jobs {
-		// Симулируем случайный пинг/задержку от 100 до 600 миллисекунд
-		randomDuration := time.Duration(100+rand.Intn(500)) * time.Millisecond
-		time.Sleep(randomDuration)
+		delay := time.Duration(100+rand.Intn(501)) * time.Millisecond
+		time.Sleep(delay)
 
-		// Отправляем успешный результат выполнения задачи
+		// Инициализация структуры Result
 		results <- Result{
-			Job:      job,
+			JobID:    job.ID, // Присваиваем ID задачи в поле JobID
+			URL:      job.URL,
+			Duration: delay,
 			Status:   "Успешно",
-			Duration: randomDuration,
 		}
 	}
 }
 
-// RunPool — точка входа в пакет. Управляет паттернами Fan-out и Fan-in.
-func RunPool(urls []string, numWorkers int) []Result {
-	// Создаем каналы с буфером под размер переданных URL
-	jobs := make(chan Job, len(urls))
-	results := make(chan Result, len(urls))
+type Pool struct {
+	workerCount int
+}
 
+func NewPool(workerCount int) *Pool {
+	if workerCount < 1 {
+		workerCount = 1
+	}
+	return &Pool{workerCount: workerCount}
+}
+
+func (p *Pool) Start(jobs []Job) []Result {
+	if len(jobs) == 0 {
+		return nil
+	}
+
+	jobsChan := make(chan Job, len(jobs))
+	resultsChan := make(chan Result, len(jobs))
 	var wg sync.WaitGroup
 
-	// [Fan-out] Инициализируем пул воркеров
-	for i := 1; i <= numWorkers; i++ {
+	for w := 1; w <= p.workerCount; w++ {
 		wg.Add(1)
-		go worker(jobs, results, &wg)
+		go worker(w, jobsChan, resultsChan, &wg)
 	}
 
-	// Генерация задач и отправка в очередь
-	for i, url := range urls {
-		jobs <- Job{
-			ID:  i + 1,
-			URL: url,
-		}
+	for _, job := range jobs {
+		jobsChan <- job
 	}
-	close(jobs) // Сигнал воркерам, что новых задач больше не будет
+	close(jobsChan)
 
-	// [Fan-in] Ожидание завершения всех горутин и закрытие канала результатов
-	go func() {
-		wg.Wait()
-		close(results)
-	}()
+	wg.Wait()
+	close(resultsChan)
 
-	// Агрегируем результаты из канала в единый слайс
-	var finalReport []Result
-	for res := range results {
-		finalReport = append(finalReport, res)
+	var results []Result
+	for res := range resultsChan {
+		results = append(results, res)
 	}
 
-	return finalReport
+	return results
 }

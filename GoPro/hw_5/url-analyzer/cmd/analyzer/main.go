@@ -2,52 +2,62 @@ package main
 
 import (
 	"fmt"
+	"sort"
 	"time"
-
-	// Подключаем наш внутренний пакет.
-	// "url-analyzer" — это имя модуля, которое вы указали при `go mod init`
 	"url-analyzer/internal/pool"
 )
 
 func main() {
-	// Исходный массив адресов для проверки производительности
 	urls := []string{
 		"https://google.com",
 		"https://github.com",
-		"https://yandex.ru",
 		"https://golang.org",
 		"https://habr.com",
-		"https://stackoverflow.com",
+		"https://yandex.ru",
+		"https://vk.com",
 		"https://reddit.com",
-		"https://docker.com",
+		"https://youtube.com",
 	}
 
-	// Ограничиваем одновременные запросы количеством в 5 воркеров
-	numWorkers := 5
+	jobs := make([]pool.Job, len(urls))
+	for i, url := range urls {
+		jobs[i] = pool.Job{ID: i + 1, URL: url}
+	}
 
-	// Передаем работу изолированному модулю пула
-	finalReport := pool.RunPool(urls, numWorkers)
+	startTime := time.Now()
 
-	// Форматированный вывод таблицы результатов
+	// Инициализируем пул воркеров
+	p := pool.NewPool(3)
+	results := p.Start(jobs)
+
+	totalTime := time.Since(startTime)
+
+	// Сортируем результаты по JobID для стабильного вывода отчета
+	sort.Slice(results, func(i, j int) bool {
+		return results[i].JobID < results[j].JobID
+	})
+
+	// Вывод финального отчета
 	fmt.Println("=== ФИНАЛЬНЫЙ ОТЧЁТ ПО ОБРАБОТКЕ URL ===")
-	fmt.Printf("%-3s | %-26s | %-10s | %-10s\n", "ID", "URL", "Статус", "Время")
+	fmt.Println("ID | URL | Статус | Время")
 	fmt.Println("------------------------------------------------------------")
 
 	var totalDuration time.Duration
-	for _, res := range finalReport {
-		fmt.Printf("%-3d | %-26s | %-10s | %v\n", res.Job.ID, res.Job.URL, res.Status, res.Duration)
+	successCount := 0
+
+	for _, res := range results {
+		fmt.Printf("%d | %s | %s | %v\n", res.JobID, res.URL, res.Status, res.Duration)
 		totalDuration += res.Duration
+		if res.Status == "Успешно" {
+			successCount++
+		}
 	}
 
-	// Вычисление и вывод общих метрик
+	avgDuration := totalDuration / time.Duration(len(results))
+
 	fmt.Println("------------------------------------------------------------")
 	fmt.Println("=== Общая статистика ===")
-	totalOps := len(finalReport)
-	fmt.Printf("Количество успешных операций: %d из %d\n", totalOps, len(urls))
-
-	if totalOps > 0 {
-		avgDuration := totalDuration / time.Duration(totalOps)
-		fmt.Printf("Общее время работы всех имитаций: %v\n", totalDuration)
-		fmt.Printf("Среднее время выполнения одного запроса: %v\n", avgDuration)
-	}
+	fmt.Printf("Количество успешных операций: %d из %d\n", successCount, len(urls))
+	fmt.Printf("Общее время работы всех имитаций: %.2fs\n", totalTime.Seconds())
+	fmt.Printf("Среднее время выполнения одного запроса: %v\n", avgDuration.Round(time.Millisecond))
 }

@@ -2,15 +2,16 @@ package pool
 
 import "time"
 
-// Job представляет задачу для обработки веб-сервера.
+// Job представляет задачу для обработки URL
 type Job struct {
 	ID  int
 	URL string
 }
 
-// Result представляет результат симуляции HTTP-запроса.
+// Result представляет результат обработки URL
 type Result struct {
-	Job      Job
-	Status   string
+	JobID    int
+	URL      string
 	Duration time.Duration
+	Status   string
 }
