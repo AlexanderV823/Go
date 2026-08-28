@@ -2,67 +2,77 @@ package main
 
 import (
 	"crypto/rand"
-	"encoding/base64"
 	"errors"
-	"net/url"
-	"strings"
+	"math/big"
 	"sync"
 )
 
+const (
+	alphabet = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
+	idLength = 6
+)
+
 type URLShortener struct {
-	urls map[string]string
-	mu   sync.RWMutex
+	mu         sync.RWMutex
+	shortToURL map[string]string
+	urlToShort map[string]string // Новая мапа для предотвращения дубликатов
 }
 
 func NewURLShortener() *URLShortener {
 	return &URLShortener{
-		urls: make(map[string]string),
+		shortToURL: make(map[string]string),
+		urlToShort: make(map[string]string),
 	}
 }
 
-func (us *URLShortener) Shorten(originalURL string) (string, error) {
-	if !isValidURL(originalURL) {
-		return "", errors.New("invalid or unsupported URL scheme")
+// Измененная функция теперь возвращает ошибку, если crypto/rand дал сбой
+func (s *URLShortener) generateShortID() (string, error) {
+	b := make([]byte, idLength)
+	for i := range b {
+		num, err := rand.Int(rand.Reader, big.NewInt(int64(len(alphabet))))
+		if err != nil {
+			return "", err // Вместо "fallback" возвращаем реальную ошибку
+		}
+		b[i] = alphabet[num.Int64()]
+	}
+	return string(b), nil
+}
+
+func (s *URLShortener) Shorten(longURL string) (string, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	// Если URL уже сокращался, возвращаем существующий ID
+	if existingID, exists := s.urlToShort[longURL]; exists {
+		return existingID, nil
 	}
 
-	us.mu.Lock()
-	defer us.mu.Unlock()
+	// Генерируем новый ID с обработкой ошибки
+	shortID, err := s.generateShortID()
+	if err != nil {
+		return "", errors.New("failed to generate unique ID due to system entropy issue")
+	}
 
+	// Защита от коллизий в мапе
 	for {
-		shortID := generateShortID()
-		if _, exists := us.urls[shortID]; !exists {
-			us.urls[shortID] = originalURL
-			return shortID, nil
+		if _, exists := s.shortToURL[shortID]; !exists {
+			break
+		}
+		shortID, err = s.generateShortID()
+		if err != nil {
+			return "", errors.New("failed to generate unique ID due to system entropy issue")
 		}
 	}
+
+	s.shortToURL[shortID] = longURL
+	s.urlToShort[longURL] = shortID // Сохраняем обратное соответствие
+
+	return shortID, nil
 }
 
-func (us *URLShortener) GetOriginal(shortID string) (string, error) {
-	us.mu.RLock()
-	defer us.mu.RUnlock()
-
-	original, exists := us.urls[shortID]
-	if !exists {
-		return "", errors.New("url not found")
-	}
-	return original, nil
-}
-
-func generateShortID() string {
-	b := make([]byte, 5)
-	_, err := rand.Read(b)
-	if err != nil {
-		return "fallback"
-	}
-	id := base64.RawURLEncoding.EncodeToString(b)
-	return id
-}
-
-func isValidURL(str string) bool {
-	u, err := url.ParseRequestURI(str)
-	if err != nil {
-		return false
-	}
-	scheme := strings.ToLower(u.Scheme)
-	return scheme == "http" || scheme == "https"
+func (s *URLShortener) Resolve(shortID string) (string, bool) {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	url, exists := s.shortToURL[shortID]
+	return url, exists
 }
