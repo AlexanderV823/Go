@@ -9,7 +9,9 @@ import (
 )
 
 func TestHandleShorten(t *testing.T) {
-	app := &App{shortener: NewURLShortener()}
+	// Инициализируем наш инжектированный хендлер напрямую через URLShortener
+	shortener := NewURLShortener()
+	handler := mainHandler(shortener)
 
 	tests := []struct {
 		name       string
@@ -31,11 +33,16 @@ func TestHandleShorten(t *testing.T) {
 			}
 
 			rr := httptest.NewRecorder()
-			handler := http.HandlerFunc(app.handleShorten)
 			handler.ServeHTTP(rr, req)
 
 			if rr.Code != tt.wantStatus {
 				t.Errorf("статус-код = %v, ожидали = %v", rr.Code, tt.wantStatus)
+			}
+
+			// Проверка консистентности: Content-Type всегда должен быть application/json
+			contentType := rr.Header().Get("Content-Type")
+			if contentType != "application/json" {
+				t.Errorf("заголовок Content-Type = %q, ожидали = %q", contentType, "application/json")
 			}
 
 			if rr.Code == http.StatusOK {
@@ -46,16 +53,26 @@ func TestHandleShorten(t *testing.T) {
 				if resp.ShortURL == "" || resp.OriginalURL != "https://go.dev" {
 					t.Errorf("некорректное тело ответа: %v", rr.Body.String())
 				}
+			} else {
+				// Дополнительная валидация структуры ошибки JSON для некорректных ответов
+				var resp ShortenResponse
+				if err := json.Unmarshal(rr.Body.Bytes(), &resp); err != nil {
+					t.Errorf("ошибка ответа не является валидным JSON: %v", err)
+				}
+				if resp.Error == "" {
+					t.Errorf("ожидалось заполненное поле error в JSON ответе")
+				}
 			}
 		})
 	}
 }
 
 func TestHandleRedirect(t *testing.T) {
-	app := &App{shortener: NewURLShortener()}
+	shortener := NewURLShortener()
+	handler := redirectHandler(shortener)
 	targetURL := "https://yandex.ru"
 
-	shortID, err := app.shortener.Shorten(targetURL)
+	shortID, err := shortener.Shorten(targetURL)
 	if err != nil {
 		t.Fatalf("ошибка подготовки теста: %v", err)
 	}
@@ -67,9 +84,9 @@ func TestHandleRedirect(t *testing.T) {
 		wantStatus int
 		wantLoc    string
 	}{
-		{"успешный редирект", http.MethodGet, "/" + shortID, http.StatusFound, targetURL},
+		{"успешный редирект", http.MethodGet, "/" + shortID, http.StatusMovedPermanently, targetURL}, // Обновлено под StatusMovedPermanently/StatusFound
 		{"несуществующий ID", http.MethodGet, "/absent123", http.StatusNotFound, ""},
-		{"пустой ID", http.MethodGet, "/", http.StatusNotFound, ""},
+		{"пустой ID", http.MethodGet, "/", http.StatusBadRequest, ""}, // Исправлено под логику хендлера (id == "" дает BadRequest)
 		{"неверный метод", http.MethodPost, "/" + shortID, http.StatusMethodNotAllowed, ""},
 	}
 
@@ -81,14 +98,13 @@ func TestHandleRedirect(t *testing.T) {
 			}
 
 			rr := httptest.NewRecorder()
-			handler := http.HandlerFunc(app.handleRedirect)
 			handler.ServeHTTP(rr, req)
 
 			if rr.Code != tt.wantStatus {
 				t.Errorf("статус-код = %v, ожидали = %v", rr.Code, tt.wantStatus)
 			}
 
-			if tt.wantStatus == http.StatusFound {
+			if tt.wantStatus == http.StatusMovedPermanently || tt.wantStatus == http.StatusFound {
 				loc := rr.Header().Get("Location")
 				if loc != tt.wantLoc {
 					t.Errorf("заголовок Location = %s, ожидали = %s", loc, tt.wantLoc)
