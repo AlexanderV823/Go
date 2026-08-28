@@ -35,27 +35,19 @@ go test -coverprofile=coverage.out && go tool cover -func=coverage.out && go too
 
 ## 📡 Спецификация API
 
-### 1. Сокращение URL (POST `/shorten`)
-Принимает длинный URL в формате JSON, валидирует его (схема должна быть `http` или `https`) и возвращает уникальный короткий ID (длиной от 6 до 8 символов).
+### 1. Сокращение URL (POST /shorten)
 
-* **Пример запроса через curl:**
-  ```bash
-  curl -X POST http://localhost:8080/shorten \
-       -H "Content-Type: application/json" \
-       -d '{"url": "https://google.com"}'
-  ```
-* **Пример ответа (200 OK):**
-  ```json
-  {
-    "short_url": "4a_RzA",
-    "original_url": "https://google.com"
-  }
-  ```
+Принимает длинный URL в формате JSON и возвращает уникальный короткий ID.
 
-### 2. Редирект на оригинальный URL (GET `/{short_url}`)
-Принимает короткий идентификатор в пути запроса. Возвращает статус `302 Found` с перенаправлением в заголовке `Location`. Если ID не найден — возвращает `404 Not Found`.
+```bash
+curl -X POST http://localhost:8080/shorten -H "Content-Type: application/json" -d '{"url": "https://google.com"}'
+```
 
-* **Пример запроса через curl:**
-  ```bash
-  curl -I http://localhost:8080/4a_RzA
-  ```
+### 2. Редирект на оригинальный URL (GET /{short_url})
+
+Принимает короткий идентификатор и возвращает статус 302 Found.
+
+```bash
+curl -I http://localhost:8080/{short_url}
+```
+*(Где `{short_url}` — это ID, полученный из предыдущего запроса, например: 4a_RzA)*
