@@ -12,10 +12,18 @@ func TestRunPool(t *testing.T) {
 		"https://test2.com",
 		"https://test3.com",
 	}
+
+	// Формируем срез задач (Job) на основе URL
+	jobs := make([]Job, len(testURLs))
+	for i, url := range testURLs {
+		jobs[i] = Job{ID: i + 1, URL: url}
+	}
+
 	numWorkers := 2
 
-	// Запуск тестируемой функции
-	results := RunPool(testURLs, numWorkers)
+	// Инициализируем и запускаем пул воркеров
+	pool := NewPool(numWorkers)
+	results := pool.Start(jobs)
 
 	// Проверка 1: Количество результатов должно совпадать с количеством задач
 	if len(results) != len(testURLs) {
@@ -32,19 +40,19 @@ func TestRunPool(t *testing.T) {
 	for _, res := range results {
 		// Проверяем, что статус успешный
 		if res.Status != "Успешно" {
-			t.Errorf("Для URL %s получен некорректный статус: %s", res.Job.URL, res.Status)
+			t.Errorf("Для ID %d получен некорректный статус: %s", res.JobID, res.Status)
 		}
 
 		// Проверяем, что время выполнения больше нуля
 		if res.Duration <= 0 {
-			t.Errorf("Для URL %s зафиксировано некорректное время: %v", res.Job.URL, res.Duration)
+			t.Errorf("Для URL %s зафиксировано некорректное время: %v", res.URL, res.Duration)
 		}
 
 		// Отмечаем, что данный URL был обработан
-		if _, exists := urlCheckMap[res.Job.URL]; exists {
-			urlCheckMap[res.Job.URL] = true
+		if _, exists := urlCheckMap[res.URL]; exists {
+			urlCheckMap[res.URL] = true
 		} else {
-			t.Errorf("Получен результат для неизвестного URL: %s", res.Job.URL)
+			t.Errorf("Получен результат для неизвестного URL: %s", res.URL)
 		}
 	}
 
@@ -58,12 +66,28 @@ func TestRunPool(t *testing.T) {
 
 // TestRunPool_EmptyList проверяет поведение пула при пустом списке задач
 func TestRunPool_EmptyList(t *testing.T) {
-	var testURLs []string
+	var jobs []Job
 	numWorkers := 3
 
-	results := RunPool(testURLs, numWorkers)
+	pool := NewPool(numWorkers)
+	results := pool.Start(jobs)
 
 	if len(results) != 0 {
 		t.Errorf("Ожидался пустой результат для пустого списка URL, получено элементов: %d", len(results))
+	}
+}
+
+// TestRunPool_ZeroWorkers проверяет защиту от передачи 0 воркеров
+func TestRunPool_ZeroWorkers(t *testing.T) {
+	jobs := []Job{
+		{ID: 1, URL: "https://test1.com"},
+	}
+
+	// Передаем 0 воркеров (конструктор должен безопасно переключить на 1)
+	pool := NewPool(0)
+	results := pool.Start(jobs)
+
+	if len(results) != 1 {
+		t.Errorf("Ожидался 1 результат при автоматическом исправлении пула на 1 воркера, получено: %d", len(results))
 	}
 }
