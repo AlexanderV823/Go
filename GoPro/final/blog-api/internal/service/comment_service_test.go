@@ -8,9 +8,6 @@ import (
 	"testing"
 )
 
-// Компиляция заглушек гарантирует соответствие контракту интерфейсов
-var _ service.PostRepository = (*stubCommentPostRepo)(nil)
-
 type stubCommentPostRepo struct {
 	service.PostRepository
 	existsResult bool
@@ -21,31 +18,33 @@ func (s *stubCommentPostRepo) Exists(ctx context.Context, id int) (bool, error) 
 }
 
 func TestCommentService_Create_PostNotExists(t *testing.T) {
-	// Подготовка: Пост не существует в БД
+	// Подготовка: Пост гарантированно отсутствует в базе
 	postRepo := &stubCommentPostRepo{existsResult: false}
+
+	// Вызываем оригинальный конструктор вашего CommentService
 	svc := service.NewCommentService(nil, postRepo, nil)
 
-	req := &model.CommentCreateRequest{Content: "Привет, отличный пост!"}
+	req := &model.CommentCreateRequest{Content: "Валидный текст комментария"}
 
 	// Действие
-	_, err := svc.Create(context.Background(), 999, req, 1)
+	_, err := svc.Create(context.Background(), 8888, req, 1)
 
-	// Проверка
+	// Проверка: бизнес-логика должна вернуть ErrPostNotExists
 	if !errors.Is(err, service.ErrPostNotExists) {
-		t.Fatalf("ожидалась ошибка %v, получена: %v", service.ErrPostNotExists, err)
+		t.Fatalf("ожидалась бизнес-ошибка %v, получена: %v", service.ErrPostNotExists, err)
 	}
 }
 
-func TestCommentService_Create_EmptyContent(t *testing.T) {
-	// Подготовка: Передаем пустую строку с пробелами
+func TestCommentService_Create_ValidationFailure(t *testing.T) {
+	// Инициализируем оригинальный сервис приложения
 	svc := service.NewCommentService(nil, nil, nil)
-	req := &model.CommentCreateRequest{Content: ""}
+	req := &model.CommentCreateRequest{Content: ""} // Пустой контент нарушает правила рун
 
 	// Действие
 	_, err := svc.Create(context.Background(), 1, req, 1)
 
 	// Проверка
 	if err == nil {
-		t.Fatal("ожидалась ошибка валидации пустого комментария, но метод отработал успешно")
+		t.Fatal("сервисный слой пропустил пустой комментарий без ошибки валидации длины в рунах")
 	}
 }
