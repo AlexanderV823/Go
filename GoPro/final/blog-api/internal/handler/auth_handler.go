@@ -5,6 +5,7 @@ import (
 	"blog-api/internal/service"
 	"encoding/json"
 	"errors"
+	"log"
 	"net/http"
 )
 
@@ -60,11 +61,20 @@ func (h *AuthHandler) Register(w http.ResponseWriter, r *http.Request) {
 
 	res, err := h.userService.Register(r.Context(), &req)
 	if err != nil {
+		// Контролируем гонку и возвращаем предметный 409 статус
 		if errors.Is(err, service.ErrUserAlreadyExists) {
 			writeError(w, err.Error(), http.StatusConflict)
 			return
 		}
-		writeError(w, err.Error(), http.StatusBadRequest)
+		// Перехватываем ошибки валидации сервиса, если они возникнут
+		if errors.Is(err, service.ErrInvalidCredentials) {
+			writeError(w, err.Error(), http.StatusBadRequest)
+			return
+		}
+
+		// Маскируем любые системные ошибки базы данных, защищая устройство SQL от клиента
+		log.Printf("[ERROR] Critical persistence failure during registration: %v", err)
+		writeError(w, "Service temporarily unavailable", http.StatusServiceUnavailable)
 		return
 	}
 
@@ -107,7 +117,10 @@ func (h *AuthHandler) Login(w http.ResponseWriter, r *http.Request) {
 			writeError(w, err.Error(), http.StatusUnauthorized)
 			return
 		}
-		writeError(w, err.Error(), http.StatusBadRequest)
+
+		// Маскируем ошибки СУБД при аутентификации (например, падение коннекта к пулу)
+		log.Printf("[ERROR] Internal infrastructure failure during login: %v", err)
+		writeError(w, "Internal server error occurred", http.StatusInternalServerError)
 		return
 	}
 
