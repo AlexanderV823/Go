@@ -6,6 +6,7 @@ import (
 	"context"
 	"errors"
 	"testing"
+	"fmt"
 
 	"github.com/lib/pq"
 )
@@ -28,11 +29,15 @@ func (s *stubUserRepo) Create(ctx context.Context, user *model.User) error {
 }
 
 func TestUserService_Register_RaceConditionUniqueViolation(t *testing.T) {
-	// Подготовка: симулируем ошибку СУБД unique_violation (код 23505)
+	// Подготовка: создаем структуру ошибки СУБД unique_violation (код 23505)
 	pgErr := &pq.Error{
 		Code: "23505",
 	}
-	repo := &stubUserRepo{dbError: pgErr}
+
+	// ИСПРАВЛЕНО: Оборачиваем ошибку через %w, как это делает реальный слой репозитория
+	wrappedErr := fmt.Errorf("failed to execute insert into users: %w", pgErr)
+
+	repo := &stubUserRepo{dbError: wrappedErr}
 
 	// Передаем nil вместо jwtManager, до генерации токена выполнение не дойдет
 	svc := service.NewUserService(repo, nil)
@@ -46,7 +51,7 @@ func TestUserService_Register_RaceConditionUniqueViolation(t *testing.T) {
 	// Действие
 	_, err := svc.Register(context.Background(), req)
 
-	// Проверка
+	// Проверка: тест упадет, если в сервисе используется старое приведение типов err.(*pq.Error)
 	if !errors.Is(err, service.ErrUserAlreadyExists) {
 		t.Fatalf("ожидался маппинг гонки СУБД в ошибку %v, получено: %v", service.ErrUserAlreadyExists, err)
 	}
