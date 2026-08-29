@@ -14,7 +14,14 @@ log_err_and_exit() {
     echo -e "${RED}ОШИБКА${NC}"
     echo "--------------------------------------------------"
     echo "Сбой на этапе: $step_name | Ожидался: $expected_code | Получен: $actual_code"
-    echo "Тело ответа сервера:" ; cat "$TMP_RESP"
+
+    if [ "$actual_code" = "000" ]; then
+        echo -e "${RED}[КРИТИЧЕСКИЙ СБОЙ] Сервер Блог-API недоступен по адресу $API_URL.${NC}"
+        echo "Убедитесь, что приложение успешно запущено и слушает порт 8080 перед стартом тестов."
+    else
+        echo "Тело ответа сервера:"
+        [ -f "$TMP_RESP" ] && cat "$TMP_RESP" || echo "[Файл ответа пуст]"
+    fi
     echo "--------------------------------------------------"
     exit 1
 }
@@ -32,12 +39,12 @@ USERNAME_B="user_b_$RANDOM_ID" ; EMAIL_B="user_b_$RANDOM_ID@test.com" ; PASSWORD
 # 2. Регистрация и Вход Пользователя А
 curl -s -o /dev/null -X POST "$API_URL/register" -H "Content-Type: application/json" -d "{\"username\":\"$USERNAME_A\",\"email\":\"$EMAIL_A\",\"password\":\"$PASSWORD_A\"}"
 HTTP_CODE=$(curl -s -o "$TMP_RESP" -w "%{http_code}" -X POST "$API_URL/login" -H "Content-Type: application/json" -d "{\"email\":\"$EMAIL_A\",\"password\":\"$PASSWORD_A\"}")
-TOKEN_A=$(grep -o '"token":"[^"]*' "$TMP_RESP" | head -n1 | grep -o '[^"]*$')
+TOKEN_A=$(grep -o '"token":"[^"]*' "$TMP_RESP" | head -n1 | grep -o '[^"]*' | tail -n1)
 
 # 3. Регистрация и Вход Пользователя Б
 curl -s -o /dev/null -X POST "$API_URL/register" -H "Content-Type: application/json" -d "{\"username\":\"$USERNAME_B\",\"email\":\"$EMAIL_B\",\"password\":\"$PASSWORD_B\"}"
 HTTP_CODE=$(curl -s -o "$TMP_RESP" -w "%{http_code}" -X POST "$API_URL/login" -H "Content-Type: application/json" -d "{\"email\":\"$EMAIL_B\",\"password\":\"$PASSWORD_B\"}")
-TOKEN_B=$(grep -o '"token":"[^"]*' "$TMP_RESP" | head -n1 | grep -o '[^"]*$')
+TOKEN_B=$(grep -o '"token":"[^"]*' "$TMP_RESP" | head -n1 | grep -o '[^"]*' | tail -n1)
 
 # 4. Создание поста Пользователем А
 echo -n "4. POST /posts (Пользователь А): "
@@ -54,9 +61,10 @@ echo -e "${GREEN}УСПЕШНО${NC}"
 
 # 6. Запрет изменения чужого поста Пользователем Б
 echo -n "6. PUT /posts/$POST_ID (Чужой пост от Пользователя Б): "
-HTTP_CODE=$(curl -s -o "$TMP_RESP" -w "%{http_code}" -X PUT "$API_URL/posts/$POST_ID" -H "Authorization: Bearer $TOKEN_B" -H "Content-Type: application/json" -d '{"title":"Атака","content":"Хакер"}')
+# ИСПРАВЛЕНО: title изменен на 5+ символов, контент изменен на 10+ символов для прохождения первичного валидатора
+HTTP_CODE=$(curl -s -o "$TMP_RESP" -w "%{http_code}" -X PUT "$API_URL/posts/$POST_ID" -H "Authorization: Bearer $TOKEN_B" -H "Content-Type: application/json" -d '{"title":"Атака Хакера","content":"Попытка несанкционированного изменения чужого контента"}')
 [ "$HTTP_CODE" -eq 403 ] || log_err_and_exit "Изменение чужого поста" "403" "$HTTP_CODE"
-echo -e "${GREEN}УСПЕШНО (Заблокировано)${NC}"
+echo -e "${GREEN}УСПЕШНО (Заблокировано с кодом 403)${NC}"
 
 # 7. Создание комментария Пользователем А к собственному посту
 HTTP_CODE=$(curl -s -o "$TMP_RESP" -w "%{http_code}" -X POST "$API_URL/posts/$POST_ID/comments" -H "Authorization: Bearer $TOKEN_A" -H "Content-Type: application/json" -d '{"content":"Комментарий автора А"}')
@@ -66,19 +74,19 @@ COMMENT_ID=$(grep -o '"id":[0-9]*' "$TMP_RESP" | head -n1 | grep -o '[0-9]*')
 echo -n "8. PUT /comments/$COMMENT_ID (Чужой комментарий от Пользователя Б): "
 HTTP_CODE=$(curl -s -o "$TMP_RESP" -w "%{http_code}" -X PUT "$API_URL/comments/$COMMENT_ID" -H "Authorization: Bearer $TOKEN_B" -H "Content-Type: application/json" -d '{"content":"Пытаюсь изменить чужой коммент"}')
 [ "$HTTP_CODE" -eq 403 ] || log_err_and_exit "Изменение чужого комментария" "403" "$HTTP_CODE"
-echo -e "${GREEN}УСПЕШНО (Заблокировано)${NC}"
+echo -e "${GREEN}УСПЕШНО (Заблокировано с кодом 403)${NC}"
 
 # 9. Запрет удаления чужого комментария Пользователем Б
 echo -n "9. DELETE /comments/$COMMENT_ID (Чужой комментарий от Пользователя Б): "
 HTTP_CODE=$(curl -s -o "$TMP_RESP" -w "%{http_code}" -X DELETE "$API_URL/comments/$COMMENT_ID" -H "Authorization: Bearer $TOKEN_B")
 [ "$HTTP_CODE" -eq 403 ] || log_err_and_exit "Удаление чужого комментария" "403" "$HTTP_CODE"
-echo -e "${GREEN}УСПЕШНО (Заблокировано)${NC}"
+echo -e "${GREEN}УСПЕШНО (Заблокировано с кодом 403)${NC}"
 
 # 10. Запрет удаления чужого поста Пользователем Б
 echo -n "10. DELETE /posts/$POST_ID (Чужой пост от Пользователя Б): "
 HTTP_CODE=$(curl -s -o "$TMP_RESP" -w "%{http_code}" -X DELETE "$API_URL/posts/$POST_ID" -H "Authorization: Bearer $TOKEN_B")
 [ "$HTTP_CODE" -eq 403 ] || log_err_and_exit "Удаление чужого поста" "403" "$HTTP_CODE"
-echo -e "${GREEN}УСПЕШНО (Заблокировано)${NC}"
+echo -e "${GREEN}УСПЕШНО (Заблокировано с кодом 403)${NC}"
 
 # 11. Очистка ресурсов автором А
 curl -s -o /dev/null -X DELETE "$API_URL/comments/$COMMENT_ID" -H "Authorization: Bearer $TOKEN_A"
