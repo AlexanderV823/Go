@@ -72,7 +72,7 @@ func (h *AuthHandler) Register(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
-		// Маскируем любые системные ошибки базы данных, защищая устройство SQL от клиента
+		// Маскируем системные ошибки базы данных. Клиент видит 503 без деталей подключения.
 		log.Printf("[ERROR] Critical persistence failure during registration: %v", err)
 		writeError(w, "Service temporarily unavailable", http.StatusServiceUnavailable)
 		return
@@ -80,7 +80,7 @@ func (h *AuthHandler) Register(w http.ResponseWriter, r *http.Request) {
 
 	w.Header().Set("Content-Type", "application/json; charset=utf-8")
 	w.WriteHeader(http.StatusCreated)
-	json.NewEncoder(w).Encode(res)
+	_ = json.NewEncoder(w).Encode(res)
 }
 
 // Login обрабатывает запрос на вход пользователя
@@ -118,7 +118,7 @@ func (h *AuthHandler) Login(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
-		// Маскируем ошибки СУБД при аутентификации (например, падение коннекта к пулу)
+		// Маскируем инфраструктурные сбои (упавший пул коннектов) в чистый 500
 		log.Printf("[ERROR] Internal infrastructure failure during login: %v", err)
 		writeError(w, "Internal server error occurred", http.StatusInternalServerError)
 		return
@@ -126,7 +126,7 @@ func (h *AuthHandler) Login(w http.ResponseWriter, r *http.Request) {
 
 	w.Header().Set("Content-Type", "application/json; charset=utf-8")
 	w.WriteHeader(http.StatusOK)
-	json.NewEncoder(w).Encode(res)
+	_ = json.NewEncoder(w).Encode(res)
 }
 
 // GetProfile возвращает профиль текущего пользователя
@@ -138,5 +138,5 @@ func (h *AuthHandler) GetProfile(w http.ResponseWriter, r *http.Request) {
 func writeError(w http.ResponseWriter, message string, statusCode int) {
 	w.Header().Set("Content-Type", "application/json; charset=utf-8")
 	w.WriteHeader(statusCode)
-	json.NewEncoder(w).Encode(ErrorResponse{Error: message})
+	_ = json.NewEncoder(w).Encode(ErrorResponse{Error: message})
 }

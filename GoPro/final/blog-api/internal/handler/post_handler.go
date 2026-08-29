@@ -58,13 +58,15 @@ func (h *PostHandler) Create(w http.ResponseWriter, r *http.Request) {
 
 	post, err := h.postService.Create(r.Context(), userID, &req)
 	if err != nil {
-		writeError(w, err.Error(), http.StatusBadRequest)
+		// Сбой записи из-за лежащей БД превращается в 500 вместо 400
+		log.Printf("[ERROR] Failed to create post due to database failure: %v", err)
+		writeError(w, "Internal server error occurred", http.StatusInternalServerError)
 		return
 	}
 
 	w.Header().Set("Content-Type", "application/json; charset=utf-8")
 	w.WriteHeader(http.StatusCreated)
-	json.NewEncoder(w).Encode(post)
+	_ = json.NewEncoder(w).Encode(post)
 }
 
 // GetByID возвращает пост по ID
@@ -89,13 +91,15 @@ func (h *PostHandler) GetByID(w http.ResponseWriter, r *http.Request) {
 			writeError(w, err.Error(), http.StatusNotFound)
 			return
 		}
-		writeError(w, err.Error(), http.StatusInternalServerError)
+		// Маскируем системную ошибку при падении СУБД
+		log.Printf("[ERROR] Failed to get post by ID due to database failure: %v", err)
+		writeError(w, "Internal server error occurred", http.StatusInternalServerError)
 		return
 	}
 
 	w.Header().Set("Content-Type", "application/json; charset=utf-8")
 	w.WriteHeader(http.StatusOK)
-	json.NewEncoder(w).Encode(post)
+	_ = json.NewEncoder(w).Encode(post)
 }
 
 // GetAll возвращает список постов с пагинацией
@@ -116,7 +120,7 @@ func (h *PostHandler) GetAll(w http.ResponseWriter, r *http.Request) {
 	posts, total, err := h.postService.GetAll(r.Context(), limit, offset)
 	if err != nil {
 		log.Printf("[ERROR] Failed to get posts: %v", err)
-		writeError(w, "Internal server error", http.StatusInternalServerError)
+		writeError(w, "Internal server error occurred", http.StatusInternalServerError)
 		return
 	}
 
@@ -129,7 +133,7 @@ func (h *PostHandler) GetAll(w http.ResponseWriter, r *http.Request) {
 
 	w.Header().Set("Content-Type", "application/json; charset=utf-8")
 	w.WriteHeader(http.StatusOK)
-	json.NewEncoder(w).Encode(PaginatedResponse{
+	_ = json.NewEncoder(w).Encode(PaginatedResponse{
 		Posts:  posts,
 		Total:  total,
 		Limit:  limit,
@@ -188,13 +192,15 @@ func (h *PostHandler) Update(w http.ResponseWriter, r *http.Request) {
 			writeError(w, "You cannot configure alternative entities", http.StatusForbidden)
 			return
 		}
-		writeError(w, err.Error(), http.StatusBadRequest)
+		// Маскируем системную ошибку
+		log.Printf("[ERROR] Failed to update post due to database failure: %v", err)
+		writeError(w, "Internal server error occurred", http.StatusInternalServerError)
 		return
 	}
 
 	w.Header().Set("Content-Type", "application/json; charset=utf-8")
 	w.WriteHeader(http.StatusOK)
-	json.NewEncoder(w).Encode(post)
+	_ = json.NewEncoder(w).Encode(post)
 }
 
 // Delete удаляет пост
@@ -229,7 +235,9 @@ func (h *PostHandler) Delete(w http.ResponseWriter, r *http.Request) {
 			writeError(w, "Modification restricted", http.StatusForbidden)
 			return
 		}
-		writeError(w, err.Error(), http.StatusInternalServerError)
+		// Маскируем системную ошибку
+		log.Printf("[ERROR] Failed to delete post due to database failure: %v", err)
+		writeError(w, "Internal server error occurred", http.StatusInternalServerError)
 		return
 	}
 
