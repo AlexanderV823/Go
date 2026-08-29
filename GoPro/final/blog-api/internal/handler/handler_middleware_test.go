@@ -84,7 +84,9 @@ func TestAuthMiddleware_RealRequireAuth(t *testing.T) {
 		userID, ok := middleware.GetUserIDFromContext(r.Context())
 		if ok {
 			w.WriteHeader(http.StatusOK)
-			_, _ = w.Write([]byte(fmt.Sprintf("userID:%d", userID)))
+			// ИСПРАВЛЕНО: Заменено ручное приведение []byte(fmt.Sprintf(...)) на эффективный fmt.Appendf
+			res := fmt.Appendf(nil, "userID:%d", userID)
+			_, _ = w.Write(res)
 		}
 	})
 
