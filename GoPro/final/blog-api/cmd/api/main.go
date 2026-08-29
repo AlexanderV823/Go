@@ -100,6 +100,9 @@ func main() {
 	// Инициализируем Middleware авторизации
 	authMiddleware := middleware.NewAuthMiddleware(jwtManager)
 
+	// Явно инициализируем новый потокобезопасный RateLimiter (100 запросов в минуту)
+	rateLimiterMiddleware := middleware.NewRateLimiter(100, time.Minute)
+
 	// Инициализируем кастомный слой инфраструктурных Middleware с настроенным логгером
 	customMiddleware := middleware.NewLoggingMiddleware(loggerInstance)
 
@@ -107,11 +110,14 @@ func main() {
 	router := chi.NewRouter()
 
 	// Настраиваем кастомные глобальные middleware в строгой последовательности
-	router.Use(customMiddleware.Recovery)                      // 1. Перехват паник
-	router.Use(customMiddleware.RequestID)                     // 2. Трассировка (Request ID)
-	router.Use(customMiddleware.CORS)                          // 3. Обработка CORS заголовков и OPTIONS
-	router.Use(customMiddleware.RateLimiter(100, time.Minute)) // 4. Защита от DDoS
-	router.Use(customMiddleware.Logger)                        // 5. Логирование запросов
+	router.Use(customMiddleware.Recovery)  // Перехват паник
+	router.Use(customMiddleware.RequestID) // Трассировка (Request ID)
+	router.Use(customMiddleware.CORS)      // Обработка CORS заголовков и OPTIONS
+
+	// Подключаем новый безопасный лимитер вместо customMiddleware.RateLimiter
+	router.Use(rateLimiterMiddleware.Limit) // Защита от DDoS (Token Bucket с изоляцией мьютексов)
+
+	router.Use(customMiddleware.Logger) // Логирование запросов
 
 	// Роуты API
 	router.Route("/api", func(r chi.Router) {
