@@ -65,9 +65,9 @@ func (s *UserService) Register(ctx context.Context, req *model.UserCreateRequest
 	}
 
 	if err := s.userRepo.Create(ctx, user); err != nil {
-
-		if pqErr, ok := err.(*pq.Error); ok {
-			if pqErr.Code == "23505" { // Код unique_violation в PostgreSQL
+		var pgErr *pq.Error
+		if errors.As(err, &pgErr) {
+			if pgErr.Code == "23505" { // Код unique_violation в PostgreSQL
 				return nil, ErrUserAlreadyExists
 			}
 		}
