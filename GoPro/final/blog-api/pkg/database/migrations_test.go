@@ -1,72 +1,59 @@
 package database_test
 
 import (
-	"context"
-	"database/sql"
+	"blog-api/pkg/database"
 	"errors"
 	"testing"
 
 	"github.com/DATA-DOG/go-sqlmock"
 )
 
-// Имитируем внутреннее устройство функции Migrate на базе sqlmock
-func runMigrationMock(ctx context.Context, db *sql.DB, sqlSchema string) error {
-	tx, err := db.BeginTx(ctx, nil)
-	if err != nil {
-		return err
-	}
-	defer tx.Rollback()
-
-	// Выполняем сырой SQL-скрипт схемы в транзакции
-	if _, err := tx.ExecContext(ctx, sqlSchema); err != nil {
-		return err
-	}
-
-	return tx.Commit()
-}
-
-func TestMigrate_SuccessTransaction(t *testing.T) {
+func TestMigrate_RealTransaction_Success(t *testing.T) {
 	db, mock, err := sqlmock.New()
 	if err != nil {
 		t.Fatalf("ошибка инициализации sqlmock: %v", err)
 	}
 	defer db.Close()
 
-	// Ожидаем открытие транзакции, выполнение DDL и успешный коммит
+	// Настраиваем строгую последовательность вызовов для реального метода Migrate согласно схеме
 	mock.ExpectBegin()
 	mock.ExpectExec("CREATE TABLE IF NOT EXISTS users").WillReturnResult(sqlmock.NewResult(0, 0))
+	mock.ExpectExec("CREATE TABLE IF NOT EXISTS posts").WillReturnResult(sqlmock.NewResult(0, 0))
+	mock.ExpectExec("CREATE TABLE IF NOT EXISTS comments").WillReturnResult(sqlmock.NewResult(0, 0))
+	mock.ExpectExec("CREATE INDEX IF NOT EXISTS idx_posts_author_id").WillReturnResult(sqlmock.NewResult(0, 0))
+	mock.ExpectExec("CREATE INDEX IF NOT EXISTS idx_comments_post_id").WillReturnResult(sqlmock.NewResult(0, 0))
+	mock.ExpectExec("CREATE INDEX IF NOT EXISTS idx_posts_created_at").WillReturnResult(sqlmock.NewResult(0, 0))
 	mock.ExpectCommit()
 
-	schema := "CREATE TABLE IF NOT EXISTS users (id SERIAL PRIMARY KEY);"
-	err = runMigrationMock(context.Background(), db, schema)
+	err = database.Migrate(db)
 	if err != nil {
-		t.Fatalf("ожидалась успешная миграция, получен сбой: %v", err)
+		t.Fatalf("настоящая миграция упала со сбоем: %v", err)
 	}
 
 	if err := mock.ExpectationsWereMet(); err != nil {
-		t.Errorf("не все ожидания транзакции СУБД были выполнены: %v", err)
+		t.Errorf("не все DDL шаги мигратора выполнены внутри транзакции: %v", err)
 	}
 }
 
-func TestMigrate_RollbackOnError(t *testing.T) {
+func TestMigrate_RealTransaction_Rollback(t *testing.T) {
 	db, mock, err := sqlmock.New()
 	if err != nil {
 		t.Fatalf("ошибка инициализации sqlmock: %v", err)
 	}
 	defer db.Close()
 
-	// Ожидаем открытие транзакции, синтаксический сбой при Exec и автоматический Rollback
+	// Имитируем сбой СУБД на первом же шаге создания таблицы users
 	mock.ExpectBegin()
-	mock.ExpectExec("BROKEN SQL SYNTAX").WillReturnError(errors.New("postgres: syntax error near BROKEN"))
+	mock.ExpectExec("CREATE TABLE IF NOT EXISTS users").
+		WillReturnError(errors.New("postgres: connection lost or syntax error"))
 	mock.ExpectRollback()
 
-	brokenSchema := "BROKEN SQL SYNTAX;"
-	err = runMigrationMock(context.Background(), db, brokenSchema)
+	err = database.Migrate(db)
 	if err == nil {
-		t.Error("мигратор пропустил сломанный SQL синтаксис без вызова Rollback")
+		t.Error("мигратор пропустил ошибку СУБД и не вызвал Rollback транзакции")
 	}
 
 	if err := mock.ExpectationsWereMet(); err != nil {
-		t.Errorf("транзакция не была откачена корректно: %v", err)
+		t.Errorf("транзакция принудительного отката повреждена: %v", err)
 	}
 }

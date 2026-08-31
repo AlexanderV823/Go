@@ -3,7 +3,9 @@ package handler_test
 import (
 	"blog-api/internal/handler"
 	"blog-api/internal/middleware"
+	"blog-api/internal/service"
 	"blog-api/pkg/auth"
+	"bytes"
 	"fmt"
 	"net/http"
 	"net/http/httptest"
@@ -153,6 +155,32 @@ func TestParsePagination_RealValidation(t *testing.T) {
 			}
 			if limit != tt.expectLimit || offset != tt.expectOffset {
 				t.Errorf("ожидался лимит/офсет %d/%d, получен %d/%d", tt.expectLimit, tt.expectOffset, limit, offset)
+			}
+		})
+	}
+}
+
+// TestAuthHandler_Register_JSONValidation проверяет строгий разбор входящих JSON пакетов
+func TestAuthHandler_Register_JSONValidation(t *testing.T) {
+	svc := service.NewUserService(nil, nil)
+	authHandler := handler.NewAuthHandler(svc)
+
+	tests := []struct {
+		name       string
+		body       string
+		expectCode int
+	}{
+		{"UnknownFields", `{"username":"tester","email":"t@b.com","password":"Password123!","hacker_field":"inject"}`, http.StatusBadRequest},
+		{"MultipleObjects", `{"username":"tester","email":"t@b.com","password":"Password123!"}{"another":true}`, http.StatusBadRequest},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			req := httptest.NewRequest(http.MethodPost, "/api/register", bytes.NewBufferString(tt.body))
+			rec := httptest.NewRecorder()
+			authHandler.Register(rec, req)
+			if rec.Code != tt.expectCode {
+				t.Errorf("шаг %s: ожидали код %d, получили %d", tt.name, tt.expectCode, rec.Code)
 			}
 		})
 	}

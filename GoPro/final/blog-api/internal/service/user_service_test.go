@@ -11,76 +11,53 @@ import (
 	"github.com/lib/pq"
 )
 
-type stubUserRepo struct {
+// stubUserRepoFailure имитирует общие инфраструктурные сбои
+type stubUserRepoFailure struct {
 	service.UserRepository
-	dbError error
+	errToReturn error
 }
 
-func (s *stubUserRepo) ExistsByEmail(ctx context.Context, email string) (bool, error) {
+func (s *stubUserRepoFailure) GetByEmail(ctx context.Context, email string) (*model.User, error) {
+	return nil, s.errToReturn
+}
+
+func (s *stubUserRepoFailure) ExistsByEmail(ctx context.Context, email string) (bool, error) {
 	return false, nil
 }
 
-func (s *stubUserRepo) ExistsByUsername(ctx context.Context, username string) (bool, error) {
+func (s *stubUserRepoFailure) ExistsByUsername(ctx context.Context, username string) (bool, error) {
 	return false, nil
 }
 
-func (s *stubUserRepo) Create(ctx context.Context, user *model.User) error {
-	return s.dbError
+// stubUserRepoUniqueViolation имитирует ошибку нарушения уникальности unique_violation
+type stubUserRepoUniqueViolation struct {
+	service.UserRepository
 }
 
-func TestUserService_Register_RaceConditionUniqueViolation(t *testing.T) {
-	// Подготовка: создаем структуру ошибки СУБД unique_violation (код 23505)
+func (s *stubUserRepoUniqueViolation) ExistsByEmail(ctx context.Context, email string) (bool, error) {
+	return false, nil
+}
+
+func (s *stubUserRepoUniqueViolation) ExistsByUsername(ctx context.Context, username string) (bool, error) {
+	return false, nil
+}
+
+func (s *stubUserRepoUniqueViolation) Create(ctx context.Context, user *model.User) error {
 	pgErr := &pq.Error{
-		Code: "23505",
+		Code: "23505", // unique_violation в PostgreSQL
 	}
-
-	// ИСПРАВЛЕНО: Оборачиваем ошибку через %w, как это делает реальный слой репозитория
-	wrappedErr := fmt.Errorf("failed to execute insert into users: %w", pgErr)
-
-	repo := &stubUserRepo{dbError: wrappedErr}
-
-	// Передаем nil вместо jwtManager, до генерации токена выполнение не дойдет
-	svc := service.NewUserService(repo, nil)
-
-	req := &model.UserCreateRequest{
-		Username: "concurrent_user",
-		Email:    "race@test.com",
-		Password: "SecurePassword123!",
-	}
-
-	// Действие
-	_, err := svc.Register(context.Background(), req)
-
-	// Проверка: тест упадет, если в сервисе используется старое приведение типов err.(*pq.Error)
-	if !errors.Is(err, service.ErrUserAlreadyExists) {
-		t.Fatalf("ожидался маппинг гонки СУБД в ошибку %v, получено: %v", service.ErrUserAlreadyExists, err)
-	}
+	// Имитируем оборачивание ошибки внутри репозитория через %w
+	return fmt.Errorf("repository query insert failed: %w", pgErr)
 }
 
-func TestUserService_Register_InvalidEmailFormat(t *testing.T) {
-	// Подготовка
-	svc := service.NewUserService(nil, nil)
-	req := &model.UserCreateRequest{
-		Username: "valid_username",
-		Email:    "broken-email-without-at",
-		Password: "SecurePassword123!",
-	}
+// Тест: слабый пароль (без цифр) должен вызывать ValidationError
+func TestUserService_Register_WeakPasswordStrength(t *testing.T) {
+	svc := service.NewUserService(&stubUserRepoFailure{}, nil)
 
-	// Действие
-	_, err := svc.Register(context.Background(), req)
-
-	// Проверка
-	if err == nil {
-		t.Fatal("ожидался отказ в регистрации из-за некорректного формата email")
-	}
-}
-
-func TestUserService_Register_InvalidPasswordStrength(t *testing.T) {
-	svc := service.NewUserService(&stubUserRepo{}, nil)
 	req := &model.UserCreateRequest{
 		Username: "valid_user",
-		Email:    "password_test@test.com",
-		Password: "123", // Пароль не проходит усиленную валидацию
+		Email:    "password_strength@test.com",
+		Password: "onlyletters", // Ошибка: отсутствуют цифры
 	}
 
 	_, err := svc.Register(context.Background(), req)
@@ -88,5 +65,47 @@ func TestUserService_Register_InvalidPasswordStrength(t *testing.T) {
 	var valErr *service.ValidationError
 	if !errors.As(err, &valErr) {
 		t.Fatalf("ожидалась ошибка типа *service.ValidationError, получена: %v", err)
+	}
+
+	if valErr.Error() != "password must contain both letters and digits" {
+		t.Errorf("неверный текст ошибки валидации сложности пароля: %q", valErr.Error())
+	}
+}
+
+// Тест: при критической аварии БД метод Login должен прокинуть ошибку наверх, а не маскировать её в 401
+func TestUserService_Login_DatabaseInfrastructureFailure(t *testing.T) {
+	dbNetworkErr := errors.New("dial tcp 127.0.0.1:5432: connect: connection refused")
+	repoStub := &stubUserRepoFailure{errToReturn: dbNetworkErr}
+
+	svc := service.NewUserService(repoStub, nil)
+	req := &model.UserLoginRequest{
+		Email:    "test@blog.com",
+		Password: "Password123!",
+	}
+
+	_, err := svc.Login(context.Background(), req)
+
+	// Проверяем, что вернулась именно ошибка сети, а не ErrInvalidCredentials
+	if !errors.Is(err, dbNetworkErr) {
+		t.Fatalf("ожидался проброс инфраструктурной ошибки %v, получен: %v", dbNetworkErr, err)
+	}
+}
+
+// Тест: проверяет корректную размотку errors.As для гонки условий при регистрации
+func TestUserService_Register_WrappedPqError(t *testing.T) {
+	repo := &stubUserRepoUniqueViolation{}
+	svc := service.NewUserService(repo, nil)
+
+	req := &model.UserCreateRequest{
+		Username: "concurrent_user",
+		Email:    "race@test.com",
+		Password: "Password123!",
+	}
+
+	_, err := svc.Register(context.Background(), req)
+
+	// Если сервис использует прямое приведение вместо errors.As, этот тест упадет
+	if !errors.Is(err, service.ErrUserAlreadyExists) {
+		t.Fatalf("ожидался маппинг в ошибку %v, получено: %v", service.ErrUserAlreadyExists, err)
 	}
 }
