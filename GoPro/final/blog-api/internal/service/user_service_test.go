@@ -74,3 +74,19 @@ func TestUserService_Register_InvalidEmailFormat(t *testing.T) {
 		t.Fatal("ожидался отказ в регистрации из-за некорректного формата email")
 	}
 }
+
+func TestUserService_Register_InvalidPasswordStrength(t *testing.T) {
+	svc := service.NewUserService(&stubUserRepo{}, nil)
+	req := &model.UserCreateRequest{
+		Username: "valid_user",
+		Email:    "password_test@test.com",
+		Password: "123", // Пароль не проходит усиленную валидацию
+	}
+
+	_, err := svc.Register(context.Background(), req)
+
+	var valErr *service.ValidationError
+	if !errors.As(err, &valErr) {
+		t.Fatalf("ожидалась ошибка типа *service.ValidationError, получена: %v", err)
+	}
+}
