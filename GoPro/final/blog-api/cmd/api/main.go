@@ -144,7 +144,7 @@ func main() {
 
 		// Health check эндпоинт
 		r.Get("/health", func(w http.ResponseWriter, r *http.Request) {
-			w.Header().Set("Content-Type", "application/json")
+			w.Header().Set("Content-Type", "application/json; charset=utf-8")
 
 			// Создаем короткий контекст с тайм-аутом 2 секунды, чтобы не вешать запрос
 			ctx, cancel := context.WithTimeout(r.Context(), 2*time.Second)
@@ -158,11 +158,14 @@ func main() {
 			}
 
 			if err != nil {
+				// Записываем детальную ошибку драйвера СУБД в защищенный лог сервера
+				log.Printf("[ERROR] Health check database failure: %v", err)
+
 				// Если БД недоступна или схема не инициализирована, отдаем 503 Service Unavailable
 				w.WriteHeader(http.StatusServiceUnavailable)
 
-				// Используем fmt.Appendf вместо ручного приведения []byte(fmt.Sprintf(...))
-				res := fmt.Appendf(nil, `{"status":"down","error":%q,"service":"blog-api"}`, err.Error())
+				// Используем безопасный fmt.Appendf с нейтральной заглушкой без раскрытия деталей
+				res := fmt.Appendf(nil, `{"status":"down","error":"database connection failed","service":"blog-api"}`)
 				_, _ = w.Write(res)
 				return
 			}
