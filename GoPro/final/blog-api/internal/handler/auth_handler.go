@@ -61,6 +61,13 @@ func (h *AuthHandler) Register(w http.ResponseWriter, r *http.Request) {
 
 	res, err := h.userService.Register(r.Context(), &req)
 	if err != nil {
+		// Извлекаем ошибку расширенной валидации сервиса (например, сложность пароля) через errors.As
+		var valErr *service.ValidationError
+		if errors.As(err, &valErr) {
+			writeError(w, valErr.Error(), http.StatusBadRequest) // 400 Bad Request с текстом правила
+			return
+		}
+
 		// Контролируем гонку и возвращаем предметный 409 статус
 		if errors.Is(err, service.ErrUserAlreadyExists) {
 			writeError(w, err.Error(), http.StatusConflict)
@@ -113,6 +120,12 @@ func (h *AuthHandler) Login(w http.ResponseWriter, r *http.Request) {
 
 	res, err := h.userService.Login(r.Context(), &req)
 	if err != nil {
+		var valErr *service.ValidationError
+		if errors.As(err, &valErr) {
+			writeError(w, valErr.Error(), http.StatusBadRequest)
+			return
+		}
+
 		if errors.Is(err, service.ErrInvalidCredentials) {
 			writeError(w, err.Error(), http.StatusUnauthorized)
 			return

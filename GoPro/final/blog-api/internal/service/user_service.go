@@ -6,13 +6,25 @@ import (
 	"blog-api/pkg/auth"
 	"context"
 	"errors"
-	"fmt"
 	"net/mail"
 	"strings"
 	"unicode/utf8"
 
 	"github.com/lib/pq"
 )
+
+// ValidationError представляет ошибку валидации данных на уровне бизнес-логики
+type ValidationError struct {
+	Err error
+}
+
+func (e *ValidationError) Error() string {
+	return e.Err.Error()
+}
+
+func (e *ValidationError) Unwrap() error {
+	return e.Err
+}
 
 var (
 	ErrUserAlreadyExists  = errors.New("user already exists")
@@ -34,7 +46,8 @@ func NewUserService(userRepo UserRepository, jwtManager *auth.JWTManager) *UserS
 
 func (s *UserService) Register(ctx context.Context, req *model.UserCreateRequest) (*model.TokenResponse, error) {
 	if err := validateUserCreateRequest(req); err != nil {
-		return nil, fmt.Errorf("validation failed: %w", err)
+		// Оборачиваем ошибку валидации (включая проверку сложности пароля) в типизированную структуру
+		return nil, &ValidationError{Err: err}
 	}
 
 	emailExists, err := s.userRepo.ExistsByEmail(ctx, req.Email)
@@ -88,7 +101,7 @@ func (s *UserService) Register(ctx context.Context, req *model.UserCreateRequest
 
 func (s *UserService) Login(ctx context.Context, req *model.UserLoginRequest) (*model.TokenResponse, error) {
 	if err := validateUserLoginRequest(req); err != nil {
-		return nil, fmt.Errorf("validation failed: %w", err)
+		return nil, &ValidationError{Err: err}
 	}
 
 	user, err := s.userRepo.GetByEmail(ctx, req.Email)
