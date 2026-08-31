@@ -93,7 +93,12 @@ func (s *UserService) Login(ctx context.Context, req *model.UserLoginRequest) (*
 
 	user, err := s.userRepo.GetByEmail(ctx, req.Email)
 	if err != nil {
-		return nil, ErrInvalidCredentials
+		// Превращаем в ErrInvalidCredentials ТОЛЬКО если пользователь действительно отсутствует в БД
+		if errors.Is(err, repository.ErrUserNotFound) {
+			return nil, ErrInvalidCredentials
+		}
+		// Инфраструктурные ошибки (connection refused, timeout СУБД) прокидываем выше для маскирования в 500/503
+		return nil, err
 	}
 
 	if !auth.CheckPassword(req.Password, user.PasswordHash) {
