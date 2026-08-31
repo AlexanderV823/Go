@@ -15,14 +15,9 @@ func TestMigrate_RealTransaction_Success(t *testing.T) {
 	}
 	defer db.Close()
 
-	// Настраиваем строгую последовательность вызовов для реального метода Migrate согласно схеме
 	mock.ExpectBegin()
-	mock.ExpectExec("CREATE TABLE IF NOT EXISTS users").WillReturnResult(sqlmock.NewResult(0, 0))
-	mock.ExpectExec("CREATE TABLE IF NOT EXISTS posts").WillReturnResult(sqlmock.NewResult(0, 0))
-	mock.ExpectExec("CREATE TABLE IF NOT EXISTS comments").WillReturnResult(sqlmock.NewResult(0, 0))
-	mock.ExpectExec("CREATE INDEX IF NOT EXISTS idx_posts_author_id").WillReturnResult(sqlmock.NewResult(0, 0))
-	mock.ExpectExec("CREATE INDEX IF NOT EXISTS idx_comments_post_id").WillReturnResult(sqlmock.NewResult(0, 0))
-	mock.ExpectExec("CREATE INDEX IF NOT EXISTS idx_posts_created_at").WillReturnResult(sqlmock.NewResult(0, 0))
+	mock.ExpectExec("CREATE TABLE IF NOT EXISTS users").
+		WillReturnResult(sqlmock.NewResult(0, 0))
 	mock.ExpectCommit()
 
 	err = database.Migrate(db)
@@ -31,7 +26,7 @@ func TestMigrate_RealTransaction_Success(t *testing.T) {
 	}
 
 	if err := mock.ExpectationsWereMet(); err != nil {
-		t.Errorf("не все DDL шаги мигратора выполнены внутри транзакции: %v", err)
+		t.Errorf("не все ожидания транзакции были выполнены: %v", err)
 	}
 }
 
@@ -42,7 +37,7 @@ func TestMigrate_RealTransaction_Rollback(t *testing.T) {
 	}
 	defer db.Close()
 
-	// Имитируем сбой СУБД на первом же шаге создания таблицы users
+	// Имитируем сбой СУБД при выполнении монолитного скрипта
 	mock.ExpectBegin()
 	mock.ExpectExec("CREATE TABLE IF NOT EXISTS users").
 		WillReturnError(errors.New("postgres: connection lost or syntax error"))
