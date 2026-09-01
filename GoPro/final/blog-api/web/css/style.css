@@ -19,21 +19,20 @@ body {
     font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
     background-color: var(--light-bg);
     color: var(--text-main);
-    min-height: 100 screen;
+    min-height: 100vh;
     display: flex;
-    flex-content: column;
     flex-direction: column;
 }
 
 /* Навигация */
 .navbar {
     background: var(--card-bg);
-    border-b: 1px solid var(--border-color);
-    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.03);
     position: sticky;
     top: 0;
     z-index: 100;
     border-bottom: 1px solid var(--border-color);
+    /* ИСПРАВЛЕНО: Удален border-b */
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.03);
 }
 
 .nav-container {
@@ -51,7 +50,7 @@ body {
     font-weight: 800;
     color: var(--primary-color);
     text-decoration: none;
-    letter-tight: -0.025em;
+    letter-spacing: -0.025em;
 }
 
 .nav-auth-block {
@@ -175,6 +174,7 @@ body {
     color: var(--text-muted);
     font-size: 0.95rem;
     margin: 0 0 20px 0;
+    line-clamp: 3;
     display: -webkit-box;
     -webkit-line-clamp: 3;
     -webkit-box-orient: vertical;
@@ -238,7 +238,6 @@ body {
     display: block;
     font-size: 0.75rem;
     font-weight: 700;
-    uppercase: true;
     color: #4b5563;
     text-transform: uppercase;
     margin-bottom: 6px;
@@ -266,7 +265,7 @@ textarea:focus {
 .form-actions {
     display: flex;
     gap: 12px;
-    pt: 8px;
+    padding-top: 8px;
 }
 
 /* Блок комментариев */
