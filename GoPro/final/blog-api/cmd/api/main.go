@@ -176,6 +176,15 @@ func main() {
 		})
 	})
 
+	// Раздача главной страницы
+	router.Get("/", func(w http.ResponseWriter, r *http.Request) {
+		http.ServeFile(w, r, "web/index.html")
+	})
+
+	// Изолированная раздача статических ресурсов (CSS, JS)
+	staticServer := http.FileServer(http.Dir("web"))
+	router.Handle("/static/*", http.StripPrefix("/static/", staticServer))
+
 	// Запуск HTTP сервера
 	serverAddr := fmt.Sprintf("%s:%d", cfg.ServerHost, cfg.ServerPort)
 	log.Printf("Starting HTTP server on %s", serverAddr)
